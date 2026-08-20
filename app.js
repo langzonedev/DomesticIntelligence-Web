@@ -1,0 +1,53 @@
+const STORAGE_KEY='domestic-intelligence-v01';
+const initialState={selectedRoom:'living',selectedDevice:'living-blind',mode:'commission',rooms:[
+{id:'kitchen',name:'Kitchen',devices:[
+{id:'k-light',name:'Island pendants',type:'Dimmable lights',model:'Synthetic Matter Light',checks:[{name:'Power on/off',status:'pass'},{name:'Dim response',status:'pass'},{name:'State feedback',status:'pass'}]},
+{id:'k-sensor',name:'Kitchen motion',type:'Occupancy sensor',model:'Synthetic Matter Sensor',checks:[{name:'Occupancy event',status:'pass'},{name:'State feedback',status:'pass'}]}
+]},
+{id:'living',name:'Living room',devices:[
+{id:'living-light',name:'Living downlights',type:'Dimmable lights',model:'Synthetic Matter Light',checks:[{name:'Power on/off',status:'pass'},{name:'Dim response',status:'pass'}]},
+{id:'living-blind',name:'West blind',type:'Motorised blind',model:'Synthetic Matter Cover',checks:[{name:'Open / close',status:'fix'},{name:'Position feedback',status:'pass'}]},
+{id:'living-sensor',name:'Living temperature',type:'Temperature sensor',model:'Synthetic Matter Sensor',checks:[{name:'Temperature event',status:'pass'}]}
+]},
+{id:'bedroom',name:'Main bedroom',devices:[
+{id:'bed-light',name:'Bedside lights',type:'Dimmable lights',model:'Synthetic Matter Light',checks:[{name:'Power on/off',status:'pending'},{name:'Dim response',status:'pending'}]},
+{id:'bed-blind',name:'Bedroom blind',type:'Motorised blind',model:'Synthetic Matter Cover',checks:[{name:'Open / close',status:'pending'},{name:'Position feedback',status:'pending'}]}
+]},
+{id:'entry',name:'Front entry',devices:[
+{id:'entry-lock',name:'Front door lock',type:'Smart lock',model:'Synthetic Matter Lock',checks:[{name:'Lock / unlock',status:'pending'},{name:'Lock state feedback',status:'pending'}]},
+{id:'entry-door',name:'Entry contact',type:'Contact sensor',model:'Synthetic Matter Sensor',checks:[{name:'Open / close event',status:'pass'}]}
+]}
+]};
+let state=loadState();
+const $=s=>document.querySelector(s);
+const floorplan=$('#floorplan'),detailPanel=$('#detailPanel'),homeReadiness=$('#homeReadiness'),handoverRooms=$('#handoverRooms'),handoverStatus=$('#handoverStatus'),commissionView=$('#commissionView'),handoverView=$('#handoverView'),toast=$('#toast');
+function cloneInitial(){return JSON.parse(JSON.stringify(initialState))}
+function loadState(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return cloneInitial();const parsed=JSON.parse(raw);if(!parsed||!Array.isArray(parsed.rooms))throw new Error('bad state');return parsed}catch(e){localStorage.removeItem(STORAGE_KEY);return cloneInitial()}}
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+function statusesForDevice(d){return d.checks.map(c=>c.status)}
+function deviceState(d){const s=statusesForDevice(d);if(s.includes('fix'))return'attention';if(s.includes('pending'))return'pending';return'ready'}
+function roomState(r){const s=r.devices.map(deviceState);if(s.includes('attention'))return'attention';if(s.includes('pending'))return'pending';return'ready'}
+function allChecks(){return state.rooms.flatMap(r=>r.devices.flatMap(d=>d.checks))}
+function homeState(){const checks=allChecks();if(checks.some(c=>c.status==='fix'))return'attention';if(checks.some(c=>c.status==='pending'))return'pending';return'ready'}
+function label(s){return s==='ready'?'Ready':s==='attention'?'Needs attention':'Not tested'}
+function statusClass(s){return`state-${s}`}
+function progress(){const checks=allChecks();const passed=checks.filter(c=>c.status==='pass').length;return{passed,total:checks.length,pct:Math.round((passed/checks.length)*100)}}
+function getRoom(){return state.rooms.find(r=>r.id===state.selectedRoom)||state.rooms[0]}
+function getDevice(room=getRoom()){return room.devices.find(d=>d.id===state.selectedDevice)||null}
+function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function render(){renderModes();renderSummary();renderFloorplan();renderDetail();renderHandover();save()}
+function renderModes(){document.querySelectorAll('.mode-tab').forEach(b=>{const active=b.dataset.mode===state.mode;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active))});commissionView.hidden=state.mode!=='commission';handoverView.hidden=state.mode!=='handover'}
+function renderSummary(){const hs=homeState(),p=progress();homeReadiness.innerHTML=`<strong>${p.pct}% checked</strong><div class="status-line"><i class="dot ${hs}"></i>${label(hs)} · ${p.passed}/${p.total} checks passed</div>`}
+function renderFloorplan(){floorplan.innerHTML='';state.rooms.forEach(r=>{const rs=roomState(r);const btn=document.createElement('button');btn.type='button';btn.className=`room${r.id===state.selectedRoom?' selected':''}`;btn.dataset.room=r.id;btn.setAttribute('aria-label',`${r.name}: ${label(rs)}`);btn.innerHTML=`<span class="room-name">${escapeHtml(r.name)}</span><span class="room-meta">${r.devices.length} devices</span><span class="room-state ${statusClass(rs)}">${label(rs)}</span><div class="device-pins">${r.devices.map(d=>`<span class="pin ${deviceState(d)}">${escapeHtml(d.name)}</span>`).join('')}</div>`;floorplan.appendChild(btn)})}
+function renderDetail(){const room=getRoom(),device=getDevice(room);const rs=roomState(room);let html=`<div class="room-overview"><div><p class="eyebrow">Selected room</p><h3>${escapeHtml(room.name)}</h3><p class="muted">${room.devices.length} connected devices</p></div><span class="status-pill ${statusClass(rs)}">${label(rs)}</span></div><div class="device-list">`;
+html+=room.devices.map(d=>`<button type="button" class="device-row${device&&d.id===device.id?' selected':''}" data-device="${d.id}"><span class="device-row-top"><strong>${escapeHtml(d.name)}</strong><span class="status-pill ${statusClass(deviceState(d))}">${label(deviceState(d))}</span></span><small>${escapeHtml(d.type)}</small></button>`).join('')+'</div>';
+if(!device){html+=`<div class="detail-empty"><div><strong>Select a device</strong><p>Open one of the devices above to inspect its synthetic acceptance checks.</p></div></div>`}else{html+=deviceDetail(device)}detailPanel.innerHTML=html}
+function deviceDetail(d){return`<div class="device-detail"><p class="eyebrow">Device acceptance</p><h3>${escapeHtml(d.name)}</h3><p class="muted">${escapeHtml(d.model)} · simulated device</p><label class="field-label" for="deviceName">Human-friendly name</label><div class="name-edit"><input id="deviceName" value="${escapeHtml(d.name)}" maxlength="40"><button class="action secondary" id="saveName" type="button">Save</button></div><div class="checks">${d.checks.map((c,i)=>`<div class="check"><div class="check-head"><span class="check-title">${escapeHtml(c.name)}</span><span class="status-pill ${statusClass(c.status==='pass'?'ready':c.status==='fix'?'attention':'pending')}">${c.status==='pass'?'Passed':c.status==='fix'?'Fix required':'Not tested'}</span></div><div class="check-actions"><button class="action pass" type="button" data-check="${i}" data-result="pass">Pass</button><button class="action fix" type="button" data-check="${i}" data-result="fix">Needs fix</button></div></div>`).join('')}</div>${d.checks.some(c=>c.status==='fix')?'<button class="action secondary retest" id="retestDevice" type="button">Retest failed checks</button>':''}</div>`}
+function renderHandover(){const hs=homeState(),p=progress();handoverStatus.innerHTML=`<div class="handover-status ${hs==='ready'?'ready':'pending'}"><strong>${hs==='ready'?'Ready to hand over':'Handover not ready yet'}</strong><br>${hs==='ready'?'All synthetic acceptance checks have passed.':`${p.total-p.passed} checks still need attention or testing.`}</div>`;handoverRooms.innerHTML=state.rooms.map(r=>`<section class="handover-room"><div class="device-row-top"><h3>${escapeHtml(r.name)}</h3><span class="status-pill ${statusClass(roomState(r))}">${label(roomState(r))}</span></div>${r.devices.map(d=>`<div class="handover-device"><strong>${escapeHtml(d.name)}</strong><span>${deviceState(d)==='ready'?'Commissioned':'Incomplete'}</span><div class="muted">${escapeHtml(d.type)}</div></div>`).join('')}</section>`).join('')}
+function flash(message){toast.textContent=message;toast.classList.add('show');clearTimeout(flash.t);flash.t=setTimeout(()=>toast.classList.remove('show'),1800)}
+floorplan.addEventListener('click',e=>{const room=e.target.closest('[data-room]');if(!room)return;state.selectedRoom=room.dataset.room;state.selectedDevice=null;render()});
+detailPanel.addEventListener('click',e=>{const deviceBtn=e.target.closest('[data-device]');if(deviceBtn){state.selectedDevice=deviceBtn.dataset.device;render();return}const d=getDevice();if(!d)return;if(e.target.id==='saveName'){const input=$('#deviceName');const name=input.value.trim();if(!name){flash('Give the device a name first.');return}d.name=name;render();flash('Device name saved.');return}const check=e.target.closest('[data-check]');if(check){d.checks[Number(check.dataset.check)].status=check.dataset.result;render();flash(check.dataset.result==='pass'?'Check passed.':'Marked for a fix.');return}if(e.target.id==='retestDevice'){d.checks.forEach(c=>{if(c.status==='fix')c.status='pending'});render();flash('Failed checks reset for retest.')}});
+document.querySelectorAll('.mode-tab').forEach(btn=>btn.addEventListener('click',()=>{state.mode=btn.dataset.mode;render()}));
+$('#resetButton').addEventListener('click',()=>{if(!window.confirm('Reset all local demo changes and restore the synthetic starting state?'))return;state=cloneInitial();render();flash('Demo reset.')} );
+if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
+render();
