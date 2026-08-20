@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#15251f">
+  <meta name="description" content="Domestic Intelligence — a visual smart-home commissioning and handover prototype by Lang Systems.">
+  <title>Domestic Intelligence</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">DI</div>
+        <div>
+          <p class="eyebrow">Domestic Intelligence</p>
+          <h1>Know what’s happening at home.</h1>
+        </div>
+      </div>
+      <button class="icon-button" id="resetButton" type="button" aria-label="Reset demo data" title="Reset demo">↺</button>
+    </header>
+
+    <div class="prototype-note" role="note">
+      <strong>Prototype:</strong> synthetic devices only · changes stay on this browser · no real Matter control or electrical certification.
+    </div>
+
+    <nav class="mode-tabs" aria-label="App mode">
+      <button class="mode-tab active" type="button" data-mode="commission" aria-selected="true">Commission</button>
+      <button class="mode-tab" type="button" data-mode="handover" aria-selected="false">Handover</button>
+    </nav>
+
+    <main>
+      <section id="commissionView">
+        <div class="home-heading">
+          <div>
+            <p class="eyebrow">Demo project</p>
+            <h2>12 Riverside Drive</h2>
+            <p class="muted">Tap a room, then a device. Clear what needs attention before handover.</p>
+          </div>
+          <div class="readiness-card" id="homeReadiness" aria-live="polite"></div>
+        </div>
+
+        <div class="workspace">
+          <section class="map-card" aria-labelledby="mapHeading">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Top-down plan</p>
+                <h3 id="mapHeading">Home readiness</h3>
+              </div>
+              <span class="legend"><i class="dot ready"></i> Ready <i class="dot attention"></i> Attention <i class="dot pending"></i> Pending</span>
+            </div>
+            <div class="floorplan" id="floorplan" aria-label="Interactive home floor plan"></div>
+          </section>
+
+          <aside class="detail-card" id="detailPanel" aria-live="polite"></aside>
+        </div>
+      </section>
+
+      <section id="handoverView" hidden>
+        <div class="handover-hero">
+          <p class="eyebrow">Homeowner view</p>
+          <h2>Simple, non-secret handover.</h2>
+          <p class="muted">A clean record of what was installed and whether commissioning is complete — without Wi-Fi passwords, fabric credentials or installer-only notes.</p>
+          <div id="handoverStatus"></div>
+        </div>
+        <div id="handoverRooms" class="handover-grid"></div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Domestic Intelligence · v0.1 prototype</span>
+      <a href="https://langsystems.com.au" target="_blank" rel="noopener">A Lang Systems experiment</a>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
