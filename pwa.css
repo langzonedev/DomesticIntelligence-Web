@@ -16,6 +16,10 @@
   color: #66542d;
 }
 
+.action {
+  min-height: 44px;
+}
+
 .check-actions .action {
   min-height: 44px;
   min-width: 72px;

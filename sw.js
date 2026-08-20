@@ -1,4 +1,4 @@
-const CACHE='domestic-intelligence-v01-2';
+const CACHE='domestic-intelligence-v01-3';
 const SHELL=['./','./index.html','./styles.css','./pwa.css','./app.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 
 self.addEventListener('install',event=>{
