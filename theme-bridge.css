@@ -1,0 +1,111 @@
+:root {
+  --di-bg: var(--di-color-canvas);
+  --di-glow: var(--di-color-canvas-raised);
+  --di-surface: var(--di-color-surface);
+  --di-subtle: var(--di-color-surface-subtle);
+  --di-text: var(--di-color-text);
+  --di-muted: var(--di-color-text-muted);
+  --di-border: var(--di-color-border);
+  --di-accent: var(--di-color-brand);
+  --di-accent-strong: var(--di-color-brand-hover);
+  --di-on-accent: var(--di-color-on-brand);
+  --di-focus: var(--di-color-focus);
+  --di-ready: var(--di-color-ready);
+  --di-ready-bg: var(--di-color-ready-soft);
+  --di-caution: var(--di-color-pending);
+  --di-caution-bg: var(--di-color-pending-soft);
+  --di-caution-text: var(--di-color-pending);
+  --di-caution-border: var(--di-color-border-strong);
+  --di-danger: var(--di-color-attention);
+  --di-info-bg: var(--di-color-info-soft);
+  --di-info-text: var(--di-color-info);
+  --di-map-bg: var(--di-map-canvas);
+  --di-grid: var(--di-map-grid);
+  --di-wall: var(--di-map-wall);
+  --di-selection: var(--di-map-selection);
+  --di-point: var(--di-map-handle);
+  --di-point-edge: var(--di-map-selection);
+  --di-field: var(--di-control-bg);
+  --di-shadow: var(--di-shadow-raised);
+  --di-toast: var(--di-color-text);
+  --di-toast-text: var(--di-color-surface);
+}
+
+[hidden] { display: none !important; }
+
+.visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wall-hit {
+  stroke-width: 44px;
+  vector-effect: non-scaling-stroke;
+}
+
+.pin-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 44px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+}
+
+.handle-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 44px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+}
+
+.handle { pointer-events: none; }
+
+.device-point:focus-visible .pin-body,
+.handle-hit:focus-visible + .handle {
+  stroke: var(--di-focus);
+  stroke-width: 8px;
+}
+
+.wall-hit:focus-visible + .wall {
+  stroke: var(--di-focus);
+  stroke-width: 14px;
+}
+
+.keyboard-cursor {
+  fill: color-mix(in srgb, var(--di-focus) 22%, transparent);
+  stroke: var(--di-focus);
+  stroke-width: 4;
+  pointer-events: none;
+}
+
+.compact-field select,
+.grid-control select { min-height: 44px; }
+
+.map-stage {
+  aspect-ratio: 3 / 2;
+  touch-action: pan-y;
+}
+
+.map-stage.editing { touch-action: none; }
+
+@media (max-width: 620px) {
+  .mode-tabs { width: 100%; }
+  .mode-tab {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 6px;
+  }
+
+  .map-stage {
+    width: 100%;
+    aspect-ratio: auto;
+  }
+}

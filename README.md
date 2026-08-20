@@ -8,16 +8,19 @@ Public, synthetic customer-facing prototype for **Domestic Intelligence** by Lan
 
 GitHub Pages: https://langzonedev.github.io/DomesticIntelligence-Web/
 
-## v0.1 scope
+## v0.2 scope
 
-- mobile-first top-down 2D home/room view;
-- synthetic connected devices;
-- capability-based commissioning checks;
-- Pass / Fix / Retest workflow;
-- room and whole-home readiness;
-- homeowner handover view;
-- local browser persistence;
-- PWA shell/offline caching.
+- mobile-first editable 2D home map with snapped wall and device-point editing;
+- bounded Undo/Redo and independent floor-plan, wall, device, status and label layers;
+- local PNG, JPEG, WebP and single-page PDF floor-plan import;
+- synthetic device metadata, including installer-only serial, network and notes fields;
+- capability-based acceptance checks with derived room and whole-home readiness;
+- homeowner-safe PDF plus installer CSV/JSON export generated in the browser;
+- IndexedDB persistence with a bounded localStorage fallback;
+- original brand mark, accessible light/dark palette and device-following system theme;
+- installable PWA shell and offline reopening.
+
+Imported plans and project details are never uploaded by this prototype. Do not enter real credentials, passwords or Matter fabric keys.
 
 ## Public boundary
 

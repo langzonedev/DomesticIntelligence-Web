@@ -2,12 +2,12 @@
   "name": "Domestic Intelligence",
   "short_name": "Domestic Intel",
   "id": "./",
-  "description": "Visual smart-home commissioning and handover prototype.",
+  "description": "Local-first visual smart-home planning, commissioning and handover prototype.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f3f1ea",
-  "theme_color": "#15251f",
+  "background_color": "#f3f7f5",
+  "theme_color": "#10231d",
   "categories": ["business", "productivity", "utilities"],
   "icons": [
     {

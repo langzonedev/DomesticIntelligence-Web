@@ -1,0 +1,242 @@
+/* Domestic Intelligence v0.2 visual system.
+   Load after legacy styles while they are retired. Theme choice belongs on <html>:
+   data-theme="light" | data-theme="dark" | no attribute for system. */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Foundation */
+  --di-color-canvas: #f3f7f5;
+  --di-color-canvas-raised: #e8f0ed;
+  --di-color-surface: #ffffff;
+  --di-color-surface-subtle: #edf3f1;
+  --di-color-text: #14211e;
+  --di-color-text-muted: #52635e;
+  --di-color-border: #c6d3cf;
+  --di-color-border-strong: #82968f;
+  --di-color-brand: #075e54;
+  --di-color-brand-hover: #064b44;
+  --di-color-on-brand: #ffffff;
+  --di-color-focus: #087f72;
+  --di-color-selection: #c9eee6;
+
+  /* Status: always pair colour with a label or icon. */
+  --di-color-ready: #176b51;
+  --di-color-ready-soft: #ddf4ea;
+  --di-color-pending: #805000;
+  --di-color-pending-soft: #fff0d1;
+  --di-color-attention: #9a3e36;
+  --di-color-attention-soft: #fbe6e3;
+  --di-color-info: #245f88;
+  --di-color-info-soft: #e2eff8;
+
+  /* Spatial workspace */
+  --di-map-canvas: #e5eeeb;
+  --di-map-grid: #b9cbc5;
+  --di-map-wall: #1b2d28;
+  --di-map-room: #fafcfb;
+  --di-map-selection: #087f72;
+  --di-map-handle: #ffffff;
+  --di-map-scrim: rgb(20 33 30 / 62%);
+  --di-layer-hidden-opacity: 0.28;
+
+  /* Controls and layout */
+  --di-control-bg: #ffffff;
+  --di-control-bg-hover: #e9f2ef;
+  --di-control-text: #14211e;
+  --di-control-border: #9aada7;
+  --di-control-disabled-opacity: 0.52;
+  --di-touch-target: 44px;
+  --di-map-handle-size: 24px;
+  --di-space-1: 0.25rem;
+  --di-space-2: 0.5rem;
+  --di-space-3: 0.75rem;
+  --di-space-4: 1rem;
+  --di-space-5: 1.5rem;
+  --di-space-6: 2rem;
+  --di-radius-sm: 0.625rem;
+  --di-radius-md: 0.875rem;
+  --di-radius-lg: 1.25rem;
+  --di-shadow-raised: 0 12px 32px rgb(18 49 43 / 12%);
+  --di-content-max: 90rem;
+  --di-panel-width: 22rem;
+
+  /* Temporary aliases for the v0.1 stylesheet. */
+  --bg: var(--di-color-canvas);
+  --surface: var(--di-color-surface);
+  --ink: var(--di-color-text);
+  --muted: var(--di-color-text-muted);
+  --forest: var(--di-color-brand);
+  --green: var(--di-color-ready);
+  --green-soft: var(--di-color-ready-soft);
+  --amber: var(--di-color-pending);
+  --amber-soft: var(--di-color-pending-soft);
+  --red: var(--di-color-attention);
+  --red-soft: var(--di-color-attention-soft);
+  --line: var(--di-color-border);
+  --shadow: var(--di-shadow-raised);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --di-color-canvas: #0d1714;
+    --di-color-canvas-raised: #101f1b;
+    --di-color-surface: #15241f;
+    --di-color-surface-subtle: #1b2d27;
+    --di-color-text: #f2f8f5;
+    --di-color-text-muted: #b5c5bf;
+    --di-color-border: #3b5049;
+    --di-color-border-strong: #71877f;
+    --di-color-brand: #86ddcb;
+    --di-color-brand-hover: #a4eadc;
+    --di-color-on-brand: #10201c;
+    --di-color-focus: #90e8d6;
+    --di-color-selection: #1c5148;
+    --di-color-ready: #82d7ad;
+    --di-color-ready-soft: #153c30;
+    --di-color-pending: #ffca70;
+    --di-color-pending-soft: #463516;
+    --di-color-attention: #ff9d94;
+    --di-color-attention-soft: #512923;
+    --di-color-info: #9bcff0;
+    --di-color-info-soft: #17384d;
+    --di-map-canvas: #101d19;
+    --di-map-grid: #304940;
+    --di-map-wall: #dce8e3;
+    --di-map-room: #192a24;
+    --di-map-selection: #90e8d6;
+    --di-map-handle: #10201c;
+    --di-map-scrim: rgb(5 11 9 / 72%);
+    --di-control-bg: #192a24;
+    --di-control-bg-hover: #243b33;
+    --di-control-text: #f2f8f5;
+    --di-control-border: #71877f;
+    --di-shadow-raised: 0 16px 40px rgb(0 0 0 / 34%);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --di-color-canvas: #0d1714;
+  --di-color-canvas-raised: #101f1b;
+  --di-color-surface: #15241f;
+  --di-color-surface-subtle: #1b2d27;
+  --di-color-text: #f2f8f5;
+  --di-color-text-muted: #b5c5bf;
+  --di-color-border: #3b5049;
+  --di-color-border-strong: #71877f;
+  --di-color-brand: #86ddcb;
+  --di-color-brand-hover: #a4eadc;
+  --di-color-on-brand: #10201c;
+  --di-color-focus: #90e8d6;
+  --di-color-selection: #1c5148;
+  --di-color-ready: #82d7ad;
+  --di-color-ready-soft: #153c30;
+  --di-color-pending: #ffca70;
+  --di-color-pending-soft: #463516;
+  --di-color-attention: #ff9d94;
+  --di-color-attention-soft: #512923;
+  --di-color-info: #9bcff0;
+  --di-color-info-soft: #17384d;
+  --di-map-canvas: #101d19;
+  --di-map-grid: #304940;
+  --di-map-wall: #dce8e3;
+  --di-map-room: #192a24;
+  --di-map-selection: #90e8d6;
+  --di-map-handle: #10201c;
+  --di-map-scrim: rgb(5 11 9 / 72%);
+  --di-control-bg: #192a24;
+  --di-control-bg-hover: #243b33;
+  --di-control-text: #f2f8f5;
+  --di-control-border: #71877f;
+  --di-shadow-raised: 0 16px 40px rgb(0 0 0 / 34%);
+}
+
+/* Generic primitives for new v0.2 surfaces. */
+.di-touch-target {
+  min-width: var(--di-touch-target);
+  min-height: var(--di-touch-target);
+}
+
+.di-control {
+  min-height: var(--di-touch-target);
+  color: var(--di-control-text);
+  background: var(--di-control-bg);
+  border: 1px solid var(--di-control-border);
+  border-radius: var(--di-radius-sm);
+}
+
+.di-control:focus-visible,
+.di-map-interactive:focus-visible {
+  outline: 3px solid var(--di-color-focus);
+  outline-offset: 3px;
+}
+
+.di-map-surface {
+  color: var(--di-color-text);
+  background-color: var(--di-map-canvas);
+  background-image:
+    linear-gradient(var(--di-map-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--di-map-grid) 1px, transparent 1px);
+  background-size: 1.5rem 1.5rem;
+  border: 1px solid var(--di-color-border-strong);
+  border-radius: var(--di-radius-md);
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.di-map-handle {
+  width: var(--di-map-handle-size);
+  height: var(--di-map-handle-size);
+  background: var(--di-map-handle);
+  border: 3px solid var(--di-map-selection);
+  border-radius: 999px;
+}
+
+.di-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  gap: var(--di-space-2);
+  padding-inline: var(--di-space-3);
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.di-status[data-status="ready"] { color: var(--di-color-ready); background: var(--di-color-ready-soft); }
+.di-status[data-status="pending"] { color: var(--di-color-pending); background: var(--di-color-pending-soft); }
+.di-status[data-status="attention"] { color: var(--di-color-attention); background: var(--di-color-attention-soft); }
+.di-status[data-status="info"] { color: var(--di-color-info); background: var(--di-color-info-soft); }
+
+.di-responsive-shell {
+  width: min(100% - 2rem, var(--di-content-max));
+  margin-inline: auto;
+}
+
+.di-responsive-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--di-space-4);
+}
+
+@media (min-width: 48rem) {
+  .di-responsive-grid[data-layout="workspace"] {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, var(--di-panel-width));
+  }
+}
+
+@media (max-width: 30rem) {
+  :root { --di-map-handle-size: 28px; }
+  .di-responsive-shell { width: min(100% - 1rem, var(--di-content-max)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --di-motion-duration: 0ms; }
+}
+
+@media (forced-colors: active) {
+  .di-map-handle,
+  .di-control { forced-color-adjust: auto; }
+}
