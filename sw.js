@@ -1,5 +1,5 @@
-const CACHE='domestic-intelligence-v03-1';
-const SHELL=['./','./index.html','./theme.css','./theme-bridge.css','./v2.css','./mobile-v03.css','./editor-core.js','./storage.js','./exporters.js','./mobile-v03.js','./app-v2.js','./manifest.webmanifest','./brand-mark.svg','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./vendor/pdf.min.mjs','./vendor/pdf.worker.min.mjs','./vendor/PDFJS-LICENSE'];
+const CACHE='domestic-intelligence-v04-1';
+const SHELL=['./','./index.html','./theme.css','./theme-bridge.css','./v2.css','./mobile-v03.css','./editor-core.js','./storage.js','./exporters.js','./state-guard-v04.js','./mobile-v03.js','./app-v2.js','./manifest.webmanifest','./brand-mark.svg','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./vendor/pdf.min.mjs','./vendor/pdf.worker.min.mjs','./vendor/PDFJS-LICENSE'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
