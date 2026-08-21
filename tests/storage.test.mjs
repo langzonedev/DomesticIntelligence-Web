@@ -6,6 +6,8 @@ import vm from 'node:vm';
 function makeLocalStorage() {
   const values = new Map();
   return {
+    get length() { return values.size; },
+    key: index => [...values.keys()][index] ?? null,
     getItem: key => values.has(key) ? values.get(key) : null,
     setItem: (key, value) => values.set(key, String(value)),
     removeItem: key => values.delete(key)
@@ -13,7 +15,8 @@ function makeLocalStorage() {
 }
 
 function makeIndexedDb(initialRecord) {
-  let record = initialRecord;
+  const records = new Map();
+  if (initialRecord !== undefined) records.set('workspace-state-v2', initialRecord);
   const control = { abortWrites: true, abortDeletes: false };
   const database = {
     objectStoreNames: { contains: () => true },
@@ -21,33 +24,42 @@ function makeIndexedDb(initialRecord) {
     transaction(_name, mode) {
       const transaction = { error: null };
       transaction.objectStore = () => ({
-        get() {
+        get(key) {
           const request = {};
           setTimeout(() => {
-            request.result = record;
+            request.result = records.get(key);
             request.onsuccess?.();
             setTimeout(() => transaction.oncomplete?.(), 0);
           }, 0);
           return request;
         },
-        put(value) {
+        getAllKeys() {
           const request = {};
           setTimeout(() => {
-            request.result = 'workspace-state-v2';
+            request.result = [...records.keys()];
+            request.onsuccess?.();
+            setTimeout(() => transaction.oncomplete?.(), 0);
+          }, 0);
+          return request;
+        },
+        put(value, key) {
+          const request = {};
+          setTimeout(() => {
+            request.result = key;
             request.onsuccess?.();
             setTimeout(() => {
               if (control.abortWrites) {
                 transaction.error = new Error('synthetic abort');
                 transaction.onabort?.();
               } else {
-                record = value;
+                records.set(key, value);
                 transaction.oncomplete?.();
               }
             }, 0);
           }, 0);
           return request;
         },
-        delete() {
+        delete(key) {
           const request = {};
           setTimeout(() => {
             request.onsuccess?.();
@@ -55,7 +67,7 @@ function makeIndexedDb(initialRecord) {
               transaction.error = new Error('synthetic delete abort');
               transaction.onabort?.();
             } else {
-              record = undefined;
+              records.delete(key);
               transaction.oncomplete?.();
             }
           }, 0);
@@ -68,6 +80,7 @@ function makeIndexedDb(initialRecord) {
   };
   return {
     control,
+    records,
     open() {
       const request = {};
       setTimeout(() => { request.result = database; request.onsuccess?.(); }, 0);
@@ -84,6 +97,17 @@ async function loadStorage(indexedDB, localStorage) {
     module: { exports: {} },
     TextEncoder,
     Blob,
+    FileReader: class TestFileReader {
+      readAsDataURL(blob) {
+        blob.arrayBuffer().then(buffer => {
+          this.result = `data:${blob.type};base64,${Buffer.from(buffer).toString('base64')}`;
+          this.onload?.();
+        }, error => {
+          this.error = error;
+          this.onerror?.();
+        });
+      }
+    },
     console,
     setTimeout,
     clearTimeout
@@ -118,4 +142,85 @@ test('an aborted IndexedDB delete leaves an authoritative deletion marker', asyn
   const removed = await storage.clearState();
   assert.equal(removed.storage, 'localstorage');
   assert.equal(await storage.loadState(), null);
+});
+
+function namedPng(contents, name) {
+  const file = new Blob([contents], { type: 'image/png' });
+  Object.defineProperty(file, 'name', { value: name });
+  return file;
+}
+
+test('floor-aware plan records remain isolated by stable floor id', async () => {
+  const indexedDB = makeIndexedDb();
+  indexedDB.control.abortWrites = false;
+  const storage = await loadStorage(indexedDB, makeLocalStorage());
+
+  await storage.saveFloorPlan(namedPng('GROUND', 'ground.png'), {}, 'ground');
+  await storage.saveFloorPlan(namedPng('LEVEL1', 'level1.png'), {}, 'level-1');
+
+  assert.equal(await (await storage.loadFloorPlan('ground')).blob.text(), 'GROUND');
+  assert.equal(await (await storage.loadFloorPlan('level-1')).blob.text(), 'LEVEL1');
+  assert.notEqual(storage.floorPlanKey('ground'), storage.floorPlanKey('level-1'));
+});
+
+test('a legacy global plan migrates once to the requested floor after a verified copy', async () => {
+  const indexedDB = makeIndexedDb();
+  indexedDB.control.abortWrites = false;
+  indexedDB.records.set('floor-plan-v2', {
+    name: 'legacy.png', type: 'image/png', size: 6,
+    transform: null, blob: namedPng('LEGACY', 'legacy.png')
+  });
+  const storage = await loadStorage(indexedDB, makeLocalStorage());
+
+  const migrated = await storage.loadFloorPlan('ground');
+  assert.equal(await migrated.blob.text(), 'LEGACY');
+  assert.equal(migrated.floorId, 'ground');
+  assert.equal(await storage.loadFloorPlan(), null);
+  assert.equal(await storage.loadFloorPlan('level-1'), null);
+});
+
+test('a scoped read can defer legacy migration until the property owner is known', async () => {
+  const indexedDB = makeIndexedDb();
+  indexedDB.control.abortWrites = false;
+  indexedDB.records.set('floor-plan-v2', {
+    name: 'ground.png', type: 'image/png', size: 6,
+    transform: null, blob: namedPng('GROUND', 'ground.png')
+  });
+  const storage = await loadStorage(indexedDB, makeLocalStorage());
+
+  assert.equal(await storage.loadFloorPlan('level-1', { migrateLegacy: false }), null);
+  assert.ok(await storage.loadFloorPlan());
+  await storage.migrateLegacyFloorPlan('ground');
+  assert.equal(await (await storage.loadFloorPlan('ground', { migrateLegacy: false })).blob.text(), 'GROUND');
+  assert.equal(await storage.loadFloorPlan('level-1', { migrateLegacy: false }), null);
+});
+
+test('legacy migration converts a Blob safely when IndexedDB falls back', async () => {
+  const indexedDB = makeIndexedDb();
+  indexedDB.records.set('floor-plan-v2', {
+    name: 'legacy.png', type: 'image/png', size: 6,
+    transform: null, blob: namedPng('LEGACY', 'legacy.png')
+  });
+  const storage = await loadStorage(indexedDB, makeLocalStorage());
+
+  const migrated = await storage.loadFloorPlan('ground');
+  assert.match(migrated.dataUrl, /^data:image\/png;base64,/);
+  assert.equal(migrated.blob, undefined);
+  assert.equal(await storage.loadFloorPlan(), null);
+});
+
+test('clearAll removes state, legacy and every scoped floor plan', async () => {
+  const indexedDB = makeIndexedDb();
+  indexedDB.control.abortWrites = false;
+  const storage = await loadStorage(indexedDB, makeLocalStorage());
+  await storage.saveState({ home: { floors: [{ id: 'ground' }, { id: 'level-1' }] } });
+  await storage.saveFloorPlan(namedPng('GROUND', 'ground.png'), {}, 'ground');
+  await storage.saveFloorPlan(namedPng('LEVEL1', 'level1.png'), {}, 'level-1');
+  await storage.saveFloorPlan(namedPng('LEGACY', 'legacy.png'));
+
+  await storage.clearAll();
+  assert.equal(await storage.loadState(), null);
+  assert.equal(await storage.loadFloorPlan(), null);
+  assert.equal(await storage.loadFloorPlan('ground'), null);
+  assert.equal(await storage.loadFloorPlan('level-1'), null);
 });

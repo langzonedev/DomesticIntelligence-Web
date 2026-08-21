@@ -10,11 +10,12 @@
 
   const originalCore = window.DIEditorCore;
   const originalStore = window.DIStorage;
-  if (!originalCore || !originalStore) return;
+  const Property = window.DIPropertyModel;
+  if (!originalCore || !originalStore || !Property) return;
 
   let addressOverride = null;
-  let editSnapshot = null;
-  let floorSnapshot = null;
+  let editSession = null;
+  let activeFloorId = 'ground';
   let bypassEditCapture = false;
   let planInspectorHome = null;
 
@@ -27,81 +28,23 @@
     return window.matchMedia(MOBILE_QUERY).matches;
   }
 
-  function portraitMap(map) {
-    if (!map) return map;
-    const next = clone(map);
-    if (next.orientation === 'portrait-v03' || Number(next.height) > Number(next.width)) {
-      next.orientation = 'portrait-v03';
-      next.width = Number(next.width) || PORTRAIT_WIDTH;
-      next.height = Number(next.height) || PORTRAIT_HEIGHT;
-      return next;
-    }
+  let wasMobileViewport = isMobile();
 
-    const sourceWidth = Number(next.width) || 1200;
-    const sourceHeight = Number(next.height) || 800;
-    const sx = PORTRAIT_WIDTH / sourceWidth;
-    const sy = PORTRAIT_HEIGHT / sourceHeight;
-    next.width = PORTRAIT_WIDTH;
-    next.height = PORTRAIT_HEIGHT;
-    next.orientation = 'portrait-v03';
-    next.walls = (next.walls || []).map(wall => ({
-      ...wall,
-      x1: Number(wall.x1) * sx,
-      y1: Number(wall.y1) * sy,
-      x2: Number(wall.x2) * sx,
-      y2: Number(wall.y2) * sy
-    }));
-    next.points = (next.points || []).map(point => ({
-      ...point,
-      x: Number(point.x) * sx,
-      y: Number(point.y) * sy
-    }));
-    if (next.floorplan && next.floorplan.transform) {
-      next.floorplan.transform = {
-        ...next.floorplan.transform,
-        x: Number(next.floorplan.transform.x || 0) * sx,
-        y: Number(next.floorplan.transform.y || 0) * sy
-      };
-    }
-    return next;
+  function floorIdFor(state) {
+    return String(state?.home?.activeFloorId || activeFloorId || 'ground');
+  }
+
+  function portraitMap(map) {
+    return Property.portraitMap(map);
   }
 
   function blankMap(template) {
-    const source = portraitMap(template || {});
-    return {
-      width: PORTRAIT_WIDTH,
-      height: PORTRAIT_HEIGHT,
-      orientation: 'portrait-v03',
-      gridSize: Number(source.gridSize) || 20,
-      snapDistance: Number(source.snapDistance) || 14,
-      layers: { floorplan: true, walls: true, devices: true, status: true, labels: true },
-      floorplan: null,
-      walls: [],
-      points: []
-    };
+    return Property.blankMap(template);
   }
 
   function ensureHomeMetadata(state, options = {}) {
-    const next = clone(state);
-    next.map = portraitMap(next.map);
-    if (!next.home) next.home = {};
-    next.home.address = String(addressOverride || next.home.address || DEFAULT_ADDRESS).trim();
-
-    if (!Array.isArray(next.home.floors) || !next.home.floors.length) {
-      next.home.floors = [{ id: 'ground', name: 'Ground floor', map: clone(next.map) }];
-      next.home.activeFloorId = 'ground';
-    } else {
-      next.home.floors = next.home.floors.map((floor, index) => ({
-        id: String(floor.id || `floor-${index}`),
-        name: String(floor.name || `Level ${index}`),
-        map: portraitMap(floor.map || (index === 0 ? next.map : blankMap(next.map)))
-      }));
-      if (!next.home.floors.some(floor => floor.id === next.home.activeFloorId)) next.home.activeFloorId = next.home.floors[0].id;
-    }
-
-    const active = next.home.floors.find(floor => floor.id === next.home.activeFloorId) || next.home.floors[0];
-    if (options.loadActiveMap) next.map = clone(active.map);
-    else active.map = clone(next.map);
+    const next = Property.normalisePropertyState(state, { loadActiveFloor: Boolean(options.loadActiveMap) });
+    if (addressOverride) next.home.address = addressOverride;
     return next;
   }
 
@@ -115,27 +58,71 @@
       return enhanceState(originalCore.createInitialState());
     },
     normaliseState(value) {
-      return enhanceState(originalCore.normaliseState(value));
+      return enhanceState(value);
     }
   });
 
   const enhancedStore = {
     ...originalStore,
     async loadState() {
+      if (editSession?.active && editSession.draftState) return clone(editSession.draftState);
       const state = await originalStore.loadState();
       if (!state) return null;
-      const enhanced = ensureHomeMetadata(originalCore.normaliseState(state), { loadActiveMap: true });
+      const enhanced = ensureHomeMetadata(state, { loadActiveMap: true });
       addressOverride = enhanced.home.address;
+      activeFloorId = floorIdFor(enhanced);
       return enhanced;
     },
     async saveState(state) {
-      const enhanced = ensureHomeMetadata(originalCore.normaliseState(state), { loadActiveMap: false });
+      const enhanced = ensureHomeMetadata(state, { loadActiveMap: false });
       if (addressOverride) enhanced.home.address = addressOverride;
+      activeFloorId = floorIdFor(enhanced);
+      if (editSession?.active) {
+        editSession.draftState = clone(enhanced);
+        return { storage: 'memory', staged: true };
+      }
       return originalStore.saveState(enhanced);
+    },
+    async saveFloorPlan(file, metadata = {}) {
+      const validation = originalStore.validateFloorPlan(file);
+      if (!validation.ok) throw new Error(validation.error);
+      if (editSession?.active) {
+        editSession.stagedPlan = {
+          action: 'save',
+          file,
+          metadata: clone(metadata),
+          record: { ...clone(metadata), name: metadata.name || file.name || 'Floor plan', type: validation.type, size: validation.size, blob: file }
+        };
+        return { storage: 'memory', staged: true, metadata: editSession.stagedPlan.record };
+      }
+      return originalStore.saveFloorPlan(file, metadata, activeFloorId);
+    },
+    async loadFloorPlan() {
+      if (editSession?.active && editSession.stagedPlan) {
+        return editSession.stagedPlan.action === 'remove' ? null : editSession.stagedPlan.record;
+      }
+      const scoped = await originalStore.loadFloorPlan(activeFloorId, { migrateLegacy: false });
+      if (scoped) return scoped;
+      const legacy = await originalStore.loadFloorPlan();
+      if (!legacy) return null;
+      const rawState = editSession?.draftState || await originalStore.loadState().catch(() => null);
+      const ownerFloorId = Property.chooseLegacyFloorPlanOwner(rawState || window.DIEditorCore.createInitialState(), legacy);
+      const migrated = await originalStore.migrateLegacyFloorPlan(ownerFloorId);
+      return ownerFloorId === activeFloorId ? migrated : originalStore.loadFloorPlan(activeFloorId, { migrateLegacy: false });
+    },
+    async removeFloorPlan() {
+      if (editSession?.active) {
+        editSession.stagedPlan = { action: 'remove' };
+        return { storage: 'memory', staged: true };
+      }
+      return originalStore.removeFloorPlan(activeFloorId);
     },
     async clearAll() {
       addressOverride = null;
-      return originalStore.clearAll();
+      editSession = null;
+      const state = await originalStore.loadState().catch(() => null);
+      const floorIds = state?.home?.floors?.map(floor => floor?.id).filter(Boolean) || [];
+      return originalStore.clearAll(floorIds);
     }
   };
   window.DIStorage = Object.freeze(enhancedStore);
@@ -189,12 +176,140 @@
       const selected = button.dataset.value === select.value;
       button.setAttribute('aria-checked', String(selected));
       button.classList.toggle('selected', selected);
+      button.tabIndex = selected ? 0 : -1;
     });
+  }
+
+  function enhanceSearchableSelect(select) {
+    select.dataset.inlineEnhanced = 'true';
+    select.classList.add('inline-select-source');
+    select.setAttribute('aria-hidden', 'true');
+    select.tabIndex = -1;
+
+    const picker = document.createElement('div');
+    picker.className = 'searchable-choice-picker';
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'searchable-choice-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    const panel = document.createElement('div');
+    panel.className = 'searchable-choice-panel';
+    panel.hidden = true;
+    const searchLabel = document.createElement('label');
+    searchLabel.className = 'searchable-choice-search';
+    searchLabel.textContent = `Search ${labelForSelect(select).toLowerCase()} `;
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.autocomplete = 'off';
+    const list = document.createElement('div');
+    list.className = 'searchable-choice-list';
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', labelForSelect(select));
+    searchLabel.append(search);
+    panel.append(searchLabel, list);
+    picker.append(trigger, panel);
+
+    function sync() {
+      trigger.textContent = select.selectedOptions[0]?.textContent || 'Choose';
+      const options = [...list.querySelectorAll('[role="option"]:not(:disabled)')];
+      options.forEach(option => {
+        const selected = option.dataset.value === select.value;
+        option.setAttribute('aria-selected', String(selected));
+        option.tabIndex = selected ? 0 : -1;
+      });
+      if (options.length && !options.some(option => option.tabIndex === 0)) options[0].tabIndex = 0;
+    }
+    function closePicker({ restoreFocus = true } = {}) {
+      panel.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      if (restoreFocus) trigger.focus();
+    }
+    function optionButtons() {
+      return [...list.querySelectorAll('[role="option"]:not(:disabled)')];
+    }
+    function moveOptionFocus(current, key) {
+      const options = optionButtons();
+      if (!options.length) return false;
+      const index = Math.max(0, options.indexOf(current));
+      let next = null;
+      if (key === 'ArrowDown') next = options[(index + 1) % options.length];
+      if (key === 'ArrowUp') next = options[(index - 1 + options.length) % options.length];
+      if (key === 'Home') next = options[0];
+      if (key === 'End') next = options.at(-1);
+      if (!next) return false;
+      options.forEach(option => { option.tabIndex = option === next ? 0 : -1; });
+      next.focus();
+      return true;
+    }
+    function renderOptions() {
+      const query = search.value.trim().toLowerCase();
+      list.replaceChildren();
+      [...select.options].filter(option => !query || option.textContent.toLowerCase().includes(query)).forEach(option => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'searchable-choice-option';
+        button.dataset.value = option.value;
+        button.setAttribute('role', 'option');
+        button.textContent = option.textContent;
+        button.disabled = option.disabled;
+        button.addEventListener('click', () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          closePicker();
+        });
+        button.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            button.click();
+            return;
+          }
+          if (moveOptionFocus(button, event.key)) event.preventDefault();
+        });
+        list.append(button);
+      });
+      sync();
+    }
+    trigger.addEventListener('click', () => {
+      const opening = panel.hidden;
+      panel.hidden = !opening;
+      trigger.setAttribute('aria-expanded', String(opening));
+      if (opening) { search.value = ''; renderOptions(); search.focus(); }
+    });
+    trigger.addEventListener('keydown', event => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      event.preventDefault();
+      if (panel.hidden) trigger.click();
+      const options = optionButtons();
+      const target = options.find(option => option.getAttribute('aria-selected') === 'true') || (event.key === 'ArrowUp' ? options.at(-1) : options[0]);
+      if (target) { options.forEach(option => { option.tabIndex = option === target ? 0 : -1; }); target.focus(); }
+    });
+    search.addEventListener('input', renderOptions);
+    search.addEventListener('keydown', event => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') return;
+      const options = optionButtons();
+      const target = event.key === 'ArrowUp' || event.key === 'End' ? options.at(-1) : options[0];
+      if (!target) return;
+      event.preventDefault();
+      options.forEach(option => { option.tabIndex = option === target ? 0 : -1; });
+      target.focus();
+    });
+    panel.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); closePicker();
+    });
+    select.addEventListener('change', sync);
+    select.insertAdjacentElement('afterend', picker);
+    renderOptions();
   }
 
   function enhanceSelect(select) {
     if (!select || select.dataset.inlineEnhanced === 'true' || select.id === 'themeSelect') return;
     if (select.multiple || !select.options.length) return;
+    if (select.options.length > 6) {
+      enhanceSearchableSelect(select);
+      return;
+    }
     select.dataset.inlineEnhanced = 'true';
     select.classList.add('inline-select-source');
     select.setAttribute('aria-hidden', 'true');
@@ -219,6 +334,17 @@
         syncInlineChoice(select);
         select.dispatchEvent(new Event('change', { bubbles: true }));
       });
+      button.addEventListener('keydown', event => {
+        const buttons = [...group.querySelectorAll('[role="radio"]:not(:disabled)')];
+        const index = buttons.indexOf(button);
+        let next = null;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = buttons[(index + 1) % buttons.length];
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = buttons[(index - 1 + buttons.length) % buttons.length];
+        if (event.key === 'Home') next = buttons[0];
+        if (event.key === 'End') next = buttons.at(-1);
+        if (!next) return;
+        event.preventDefault(); next.click(); next.focus();
+      });
       group.append(button);
     });
     select.insertAdjacentElement('afterend', group);
@@ -230,23 +356,86 @@
     root.querySelectorAll?.('select').forEach(enhanceSelect);
   }
 
-  async function restoreFloorSnapshot() {
-    if (!floorSnapshot) {
-      await originalStore.removeFloorPlan();
+  async function restoreFloorRecord(record, floorId) {
+    if (!record) {
+      await originalStore.removeFloorPlan(floorId);
       return;
     }
-    let file = floorSnapshot.blob;
-    if (!file && floorSnapshot.dataUrl) {
-      const blob = await fetch(floorSnapshot.dataUrl).then(response => response.blob());
-      file = new File([blob], floorSnapshot.name || 'Floor plan', { type: floorSnapshot.type || blob.type });
+    let file = record.blob;
+    if (!file && record.dataUrl) {
+      const blob = await fetch(record.dataUrl).then(response => response.blob());
+      file = new File([blob], record.name || 'Floor plan', { type: record.type || blob.type });
     }
     if (file) {
-      await originalStore.saveFloorPlan(file, {
-        name: floorSnapshot.name,
-        transform: floorSnapshot.transform || null
-      });
+      await originalStore.saveFloorPlan(file, { name: record.name, transform: record.transform || null }, floorId);
     }
   }
+
+  async function beginEditSession() {
+    const runtimeState = window.DIAppBridge?.getState?.();
+    const state = runtimeState || await enhancedStore.loadState() || window.DIEditorCore.createInitialState();
+    activeFloorId = floorIdFor(state);
+    const plan = await enhancedStore.loadFloorPlan();
+    editSession = {
+      active: true,
+      floorId: activeFloorId,
+      stateSnapshot: clone(state),
+      floorSnapshot: plan || null,
+      draftState: clone(state),
+      stagedPlan: null
+    };
+    window.DIAppBridge?.cancelScheduledSave?.();
+    return editSession;
+  }
+
+  async function commitEditSession() {
+    if (!editSession?.active) return;
+    const session = editSession;
+    const draft = ensureHomeMetadata(window.DIAppBridge?.getState?.() || session.draftState, { loadActiveMap: false });
+    draft.workspaceMode = 'view';
+    window.DIAppBridge?.cancelScheduledSave?.();
+    try {
+      if (session.stagedPlan?.action === 'save') {
+        await originalStore.saveFloorPlan(session.stagedPlan.file, session.stagedPlan.metadata, session.floorId);
+      } else if (session.stagedPlan?.action === 'remove') {
+        await originalStore.removeFloorPlan(session.floorId);
+      }
+      await originalStore.saveState(draft);
+      editSession = null;
+      window.DIAppBridge?.replaceRuntimeState?.(draft);
+    } catch (error) {
+      try {
+        await restoreFloorRecord(session.floorSnapshot, session.floorId);
+        await originalStore.saveState(session.stateSnapshot);
+      } catch (rollbackError) {
+        console.error('Could not restore the pre-edit snapshot', rollbackError);
+      }
+      throw error;
+    }
+  }
+
+  async function cancelEditSession() {
+    if (!editSession?.active) return;
+    const session = editSession;
+    window.DIAppBridge?.cancelScheduledSave?.();
+    try {
+      await originalStore.saveState(session.stateSnapshot);
+      await restoreFloorRecord(session.floorSnapshot, session.floorId);
+      editSession = null;
+      location.reload();
+    } catch (error) {
+      console.error('Could not cancel floor-plan edit session', error);
+      alert('The edit session could not be rolled back safely. Reload the app before making further changes.');
+      throw error;
+    }
+  }
+
+  window.DIMobileEditSession = Object.freeze({
+    isActive: () => Boolean(editSession?.active),
+    cancelFromHistory: () => cancelEditSession(),
+    cancel: () => cancelEditSession(),
+    save: () => commitEditSession()
+  });
 
   function closeReferenceEditor() {
     document.body.classList.remove('mobile-reference-open');
@@ -297,31 +486,35 @@
     sheet.querySelector('#mobileReferenceClose').addEventListener('click', closeReferenceEditor);
     sheet.querySelector('#mobileReferenceUpload').addEventListener('click', () => document.querySelector('#uploadPlanButton')?.click());
 
-    bar.querySelector('#mobileEditSave').addEventListener('click', () => {
-      editSnapshot = null;
-      floorSnapshot = null;
-      const viewButton = document.querySelector('[data-editor-mode="view"]');
-      if (viewButton) viewButton.click();
-      setMobileEditMode(false);
-      document.querySelector('#mapStage')?.focus();
+    bar.querySelector('#mobileEditSave').addEventListener('click', async () => {
+      const button = bar.querySelector('#mobileEditSave');
+      button.disabled = true;
+      button.textContent = 'Saving…';
+      try {
+        await commitEditSession();
+        history.replaceState({ mobileSection: 'plan' }, '', '#plan');
+        setMobileEditMode(false);
+        document.querySelector('#mapStage')?.focus();
+      } catch (error) {
+        console.error('Could not save floor-plan edit session', error);
+        alert(`The edit session was not saved: ${error.message}`);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Save';
+      }
     });
 
     bar.querySelector('#mobileEditCancel').addEventListener('click', async () => {
-      if (!editSnapshot) {
+      if (!editSession?.active) {
         const viewButton = document.querySelector('[data-editor-mode="view"]');
         if (viewButton) viewButton.click();
         setMobileEditMode(false);
         return;
       }
       try {
-        const restored = clone(editSnapshot);
-        restored.workspaceMode = 'view';
-        await originalStore.saveState(restored);
-        await restoreFloorSnapshot();
-        location.reload();
+        await cancelEditSession();
       } catch (error) {
-        console.error('Could not cancel floor-plan edit session', error);
-        alert('The edit session could not be rolled back safely. Reload the app before making further changes.');
+        // cancelEditSession already surfaced the rollback failure.
       }
     });
   }
@@ -349,8 +542,11 @@
       setTimeout(() => {
         const toast = document.querySelector('#toast');
         if (!isMobile() || !toast || toast.textContent !== 'Device details saved.') return;
-        document.body.classList.remove('mobile-point-detail');
-        document.querySelector('#mapStage')?.focus();
+        if (window.DIMobileDetail?.isOpen?.()) window.DIMobileDetail.close();
+        else {
+          document.body.classList.remove('mobile-point-detail', 'mobile-new-device-detail');
+          document.querySelector('#mapStage')?.focus();
+        }
       }, 0);
     });
   }
@@ -373,17 +569,57 @@
     try { state = await enhancedStore.loadState(); } catch (_) { return; }
     if (!state) state = window.DIEditorCore.createInitialState();
     const floors = state.home.floors || [];
-    section.innerHTML = `<div class="floor-control-heading"><strong>Storey</strong><button id="addFloorButton" type="button" class="quiet-action">+ Add storey</button></div><div class="floor-choice-group" role="radiogroup" aria-label="Current storey">${floors.map(floor => `<button type="button" class="floor-choice${floor.id === state.home.activeFloorId ? ' selected' : ''}" role="radio" aria-checked="${floor.id === state.home.activeFloorId}" data-floor-id="${floor.id}">${floor.name}</button>`).join('')}</div>`;
+    section.replaceChildren();
+    const heading = document.createElement('div');
+    heading.className = 'floor-control-heading';
+    const title = document.createElement('strong');
+    title.textContent = 'Storey';
+    const addButton = document.createElement('button');
+    addButton.id = 'addFloorButton';
+    addButton.type = 'button';
+    addButton.className = 'quiet-action';
+    addButton.textContent = '+ Add storey';
+    heading.append(title, addButton);
+    const group = document.createElement('div');
+    group.className = 'floor-choice-group';
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', 'Current storey');
+    floors.forEach(floor => {
+      const selected = floor.id === state.home.activeFloorId;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `floor-choice${selected ? ' selected' : ''}`;
+      button.setAttribute('role', 'radio');
+      button.setAttribute('aria-checked', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      button.dataset.floorId = floor.id;
+      button.textContent = floor.name;
+      group.append(button);
+    });
+    section.append(heading, group);
 
-    section.querySelectorAll('[data-floor-id]').forEach(button => button.addEventListener('click', async () => {
+    section.querySelectorAll('[data-floor-id]').forEach(button => {
+      button.addEventListener('click', async () => {
       if (button.dataset.floorId === state.home.activeFloorId) return;
       const fresh = await enhancedStore.loadState() || state;
-      fresh.home.activeFloorId = button.dataset.floorId;
-      const target = fresh.home.floors.find(floor => floor.id === button.dataset.floorId);
-      if (target) fresh.map = clone(target.map);
-      await originalStore.saveState(fresh);
+      const switched = Property.activateFloor(fresh, button.dataset.floorId);
+      await originalStore.saveState(switched);
       location.reload();
-    }));
+      });
+      button.addEventListener('keydown', event => {
+        const buttons = [...group.querySelectorAll('[role="radio"]')];
+        const index = buttons.indexOf(button);
+        let next = null;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = buttons[(index + 1) % buttons.length];
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = buttons[(index - 1 + buttons.length) % buttons.length];
+        if (event.key === 'Home') next = buttons[0];
+        if (event.key === 'End') next = buttons.at(-1);
+        if (!next) return;
+        event.preventDefault();
+        next.focus();
+        next.click();
+      });
+    });
 
     section.querySelector('#addFloorButton')?.addEventListener('click', async () => {
       const fresh = await enhancedStore.loadState() || state;
@@ -391,9 +627,8 @@
       const id = `level-${Date.now().toString(36)}`;
       const floor = { id, name: `Level ${number}`, map: blankMap(fresh.map) };
       fresh.home.floors.push(floor);
-      fresh.home.activeFloorId = id;
-      fresh.map = clone(floor.map);
-      await originalStore.saveState(fresh);
+      const switched = Property.activateFloor(fresh, id);
+      await originalStore.saveState(switched);
       location.reload();
     });
   }
@@ -405,6 +640,8 @@
     try { state = await enhancedStore.loadState(); } catch (_) {}
     const address = state?.home?.address || DEFAULT_ADDRESS;
     addressOverride = address;
+    const projectName = document.querySelector('#projectName');
+    if (projectName) projectName.textContent = address;
 
     const display = document.createElement('p');
     display.id = 'projectAddressDisplay';
@@ -415,6 +652,7 @@
     wrapper.className = 'address-editor';
     wrapper.innerHTML = `<label for="residenceAddress">Residence address</label><div class="address-editor-row"><input id="residenceAddress" name="address" maxlength="160" autocomplete="street-address" value="${String(address).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"><button class="quiet-action" type="submit">Save address</button></div>`;
     heading.append(display, wrapper);
+    window.dispatchEvent(new CustomEvent('di:address-editor-ready'));
 
     wrapper.addEventListener('submit', async event => {
       event.preventDefault();
@@ -428,7 +666,10 @@
         const current = await enhancedStore.loadState() || window.DIEditorCore.createInitialState();
         current.home = { ...current.home, address: value };
         await enhancedStore.saveState(current);
+        window.DIAppBridge?.replaceRuntimeState?.(current);
         display.textContent = value;
+        if (projectName) projectName.textContent = value;
+        window.dispatchEvent(new CustomEvent('di:app-state-ready'));
         wrapper.querySelector('button').textContent = 'Saved';
         setTimeout(() => { const button = wrapper.querySelector('button'); if (button) button.textContent = 'Save address'; }, 1400);
       } catch (error) {
@@ -442,10 +683,9 @@
     if (editButton && isMobile() && !bypassEditCapture) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      Promise.all([enhancedStore.loadState(), originalStore.loadFloorPlan()]).then(([state, plan]) => {
-        editSnapshot = clone(state || window.DIEditorCore.createInitialState());
-        floorSnapshot = plan || null;
+      beginEditSession().then(() => {
         setMobileEditMode(true);
+        history.pushState({ mobileSection: 'plan', overlay: 'edit' }, '', '#plan-edit');
         bypassEditCapture = true;
         editButton.click();
         bypassEditCapture = false;
@@ -467,7 +707,15 @@
   });
 
   window.addEventListener('resize', () => {
-    if (!isMobile()) {
+    const mobileNow = isMobile();
+    if (wasMobileViewport && !mobileNow && editSession?.active) {
+      wasMobileViewport = mobileNow;
+      syncCanvasDimensions();
+      void cancelEditSession();
+      return;
+    }
+    wasMobileViewport = mobileNow;
+    if (!mobileNow) {
       document.body.classList.remove('mobile-floor-edit', 'mobile-point-detail', 'mobile-reference-open');
       closeReferenceEditor();
     }

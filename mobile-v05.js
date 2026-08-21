@@ -13,13 +13,32 @@
   let currentSection = 'plan';
   let floorOrigin = null;
   let addressOrigin = null;
+  let overlaysBound = false;
+  let detailHistoryOpen = false;
+  let referenceHistoryOpen = false;
+  let detailContext = null;
 
   function isMobile() { return matchMedia(MOBILE_QUERY).matches; }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[character]);
+  }
+
+  function sectionFromHash() {
+    const hash = location.hash.slice(1);
+    if (['plan', 'devices', 'handover', 'more'].includes(hash)) return hash;
+    if (hash.startsWith('plan-')) return 'plan';
+    return currentSection || 'plan';
+  }
 
   async function getState() {
-    try { return await window.DIStorage?.loadState(); }
-    catch (_) { return null; }
+    try {
+      return await window.DIStorage?.loadState() || window.DIAppBridge?.getState?.() || window.DIEditorCore?.createInitialState?.() || null;
+    } catch (_) {
+      return window.DIAppBridge?.getState?.() || window.DIEditorCore?.createInitialState?.() || null;
+    }
   }
 
   function clearSectionClasses() {
@@ -69,6 +88,24 @@
     const state = await getState();
     const subtitle = $('.mobile-top-appbar-subtitle');
     if (subtitle) subtitle.textContent = state?.home?.address || 'Address not set';
+  }
+
+  function rehomeAddressEditor() {
+    const host = $('#mobileAddressHost');
+    const editor = $('.address-editor');
+    if (!host || !editor) return false;
+    if (!addressOrigin && editor.parentElement !== host) {
+      addressOrigin = { parent: editor.parentElement, before: editor.nextSibling };
+    }
+    if (editor.parentElement !== host) host.append(editor);
+    return true;
+  }
+
+  function refreshShellState() {
+    refreshAppBar();
+    refreshDevicesView();
+    refreshMoreView();
+    rehomeAddressEditor();
   }
 
   function buildTopBar() {
@@ -130,7 +167,9 @@
     const floors = state.home?.floors?.length ? state.home.floors : [{ id: 'ground', name: 'Ground floor', map: state.map }];
     const groups = floors.map(floor => {
       const points = floor.map?.points || [];
-      return `<section class="mobile-device-group"><div class="mobile-device-group-heading"><h2>${floor.name}</h2><span>${points.length} ${points.length === 1 ? 'device' : 'devices'}</span></div>${points.length ? `<div class="mobile-device-list">${points.map(point => `<button type="button" class="mobile-device-row" data-open-device="${point.id}" data-floor-id="${floor.id}"><span class="mobile-device-primary"><strong>${point.name}</strong><small>${point.category || 'Device'} · ${readinessLabel(point)}</small></span><span class="mobile-device-chevron" aria-hidden="true">›</span></button>`).join('')}</div>` : '<p class="mobile-empty-copy">No devices recorded on this storey.</p>'}</section>`;
+      const floorName = escapeHtml(floor.name || 'Storey');
+      const rows = points.map(point => `<button type="button" class="mobile-device-row" data-open-device="${escapeHtml(point.id)}" data-floor-id="${escapeHtml(floor.id)}"><span class="mobile-device-primary"><strong>${escapeHtml(point.name || 'Unnamed device')}</strong><small>${escapeHtml(point.category || 'Device')} · ${escapeHtml(readinessLabel(point))}</small></span><span class="mobile-device-chevron" aria-hidden="true">›</span></button>`).join('');
+      return `<section class="mobile-device-group"><div class="mobile-device-group-heading"><h2>${floorName}</h2><span>${points.length} ${points.length === 1 ? 'device' : 'devices'}</span></div>${points.length ? `<div class="mobile-device-list">${rows}</div>` : '<p class="mobile-empty-copy">No devices recorded on this storey.</p>'}</section>`;
     }).join('');
     const total = floors.reduce((sum, floor) => sum + (floor.map?.points?.length || 0), 0);
     view.innerHTML = `<div class="mobile-page-heading"><p class="eyebrow">Property devices</p><h1>${total} ${total === 1 ? 'device' : 'devices'}</h1><p>Choose a device to inspect or update its commissioning details.</p></div>${groups}`;
@@ -142,11 +181,10 @@
     if (floorId && state.home?.activeFloorId !== floorId) {
       const floor = state.home?.floors?.find(item => item.id === floorId);
       if (floor) {
-        state.home.activeFloorId = floorId;
-        state.map = clone(floor.map);
-        const point = state.map.points?.find(item => item.id === deviceId);
-        if (point) state.selected = { roomId: point.roomId || state.rooms?.[0]?.id || null, wallId: null, pointId: deviceId };
-        await window.DIStorage.saveState(state);
+        const switched = window.DIPropertyModel?.activateFloor ? window.DIPropertyModel.activateFloor(state, floorId) : { ...state, map: clone(floor.map), home: { ...state.home, activeFloorId: floorId } };
+        const point = switched.map.points?.find(item => item.id === deviceId);
+        if (point) switched.selected = { roomId: point.roomId || switched.rooms?.[0]?.id || null, wallId: null, pointId: deviceId };
+        await window.DIStorage.saveState(switched);
         try { sessionStorage.setItem('di-open-device-after-load', deviceId); } catch (_) {}
         location.hash = '#plan';
         location.reload();
@@ -158,23 +196,25 @@
   }
 
   function buildMoreView() {
-    if ($('#mobileMoreView')) return;
-    const view = document.createElement('section');
-    view.id = 'mobileMoreView';
-    view.className = 'mobile-more-view';
-    view.hidden = true;
-    view.innerHTML = '<section class="mobile-more-card"><p class="eyebrow">Property</p><h2>Property settings</h2><div id="mobileAddressHost"></div></section><section class="mobile-more-card"><p class="eyebrow">Preferences</p><h2>App settings</h2><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Appearance</strong><small>Follows your device light or dark theme automatically.</small></div><span aria-hidden="true">◐</span></div><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Profile & sharing</strong><small>Account and trade access controls will live here as shared-property services are introduced.</small></div><span aria-hidden="true">›</span></div></section><section class="mobile-more-card"><p class="eyebrow">About</p><h2>Domestic Intelligence</h2><div id="mobileAboutHost"></div><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Local data</strong><small>Reset this browser’s synthetic prototype data and imported plans.</small></div><button type="button" class="quiet-action" id="mobileResetDemo">Reset</button></div></section>';
-    $('#top')?.append(view);
-
-    const editor = $('.address-editor');
-    if (editor) {
-      if (!addressOrigin) addressOrigin = { parent: editor.parentElement, before: editor.nextSibling };
-      view.querySelector('#mobileAddressHost').append(editor);
-      editor.addEventListener('submit', () => setTimeout(refreshAppBar, 20));
+    let view = $('#mobileMoreView');
+    if (!view) {
+      view = document.createElement('section');
+      view.id = 'mobileMoreView';
+      view.className = 'mobile-more-view';
+      view.hidden = true;
+      view.innerHTML = '<section class="mobile-more-card"><p class="eyebrow">Property</p><h2>Property settings</h2><div id="mobileAddressHost"></div></section><section class="mobile-more-card"><p class="eyebrow">Preferences</p><h2>App settings</h2><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Appearance</strong><small>Follows your device light or dark theme automatically.</small></div><span aria-hidden="true">◐</span></div><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Profile & sharing</strong><small>Account and trade access controls will live here as shared-property services are introduced.</small></div><span aria-hidden="true">›</span></div></section><section class="mobile-more-card"><p class="eyebrow">About</p><h2>Domestic Intelligence</h2><div id="mobileAboutHost"></div><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Local data</strong><small>Reset this browser’s synthetic prototype data and imported plans.</small></div><button type="button" class="quiet-action" id="mobileResetDemo">Reset</button></div></section>';
+      $('#top')?.append(view);
+      const prototype = $('.app-shell>.prototype-note');
+      if (prototype) view.querySelector('#mobileAboutHost').append(prototype.cloneNode(true));
+      view.querySelector('#mobileResetDemo')?.addEventListener('click', () => $('#resetButton')?.click());
     }
-    const prototype = $('.app-shell>.prototype-note');
-    if (prototype) view.querySelector('#mobileAboutHost').append(prototype.cloneNode(true));
-    view.querySelector('#mobileResetDemo')?.addEventListener('click', () => $('#resetButton')?.click());
+    if (rehomeAddressEditor()) {
+      const editor = $('.address-editor');
+      if (editor && editor.dataset.mobileAddressSyncBound !== 'true') {
+        editor.dataset.mobileAddressSyncBound = 'true';
+        editor.addEventListener('submit', () => setTimeout(refreshAppBar, 20));
+      }
+    }
   }
 
   async function refreshMoreView() {
@@ -194,33 +234,127 @@
       setTimeout(() => {
         const added = [...document.querySelectorAll('#pointLayer [data-point]')].find(node => !before.has(node.dataset.point));
         if (!added) return;
-        document.body.classList.add('mobile-point-detail', 'mobile-new-device-detail');
+        window.DIMobileDetail.open({ newDevice: true, returnFocus: added, focusSelector: '#pointForm input[name="name"]' });
+        detailHistoryOpen = true;
         history.pushState({ mobileSection: 'plan', overlay: 'new-device' }, '', '#plan-new-device');
-        $('#pointForm input[name="name"]')?.focus();
       }, 40);
     }, true);
   }
 
+  function installMobileDetailApi() {
+    if (window.DIMobileDetail) return;
+    const inspector = $('.inspector-card');
+    if (!inspector) return;
+
+    const backgroundSelectors = [
+      '.mobile-top-appbar', '.mobile-bottom-nav', '#floorControls', '.editor-mode-bar',
+      '.map-card', '.project-heading', '#mobileDevicesView', '#mobileMoreView', '#handoverView'
+    ];
+
+    function releaseDetail(options = {}) {
+      if (!detailContext) {
+        document.body.classList.remove('mobile-point-detail', 'mobile-new-device-detail');
+        return;
+      }
+      const context = detailContext;
+      detailContext = null;
+      document.body.classList.remove('mobile-point-detail', 'mobile-new-device-detail');
+      inspector.removeAttribute('role');
+      inspector.removeAttribute('aria-modal');
+      inspector.removeAttribute('aria-labelledby');
+      context.inerted.forEach(element => element.removeAttribute('inert'));
+      if (options.restoreFocus !== false) {
+        const target = context.returnFocus?.isConnected ? context.returnFocus : $('#mapStage');
+        requestAnimationFrame(() => target?.focus());
+      }
+    }
+
+    window.DIMobileDetail = Object.freeze({
+      open(options = {}) {
+        if (!isMobile()) return false;
+        if (detailContext) releaseDetail({ restoreFocus: false });
+        const returnFocus = options.returnFocus || document.activeElement;
+        const inerted = backgroundSelectors.map(selector => $(selector)).filter(element => element && !element.hasAttribute('inert'));
+        inerted.forEach(element => element.setAttribute('inert', ''));
+        detailContext = { returnFocus, inerted };
+        document.body.classList.add('mobile-point-detail');
+        document.body.classList.toggle('mobile-new-device-detail', Boolean(options.newDevice));
+        inspector.setAttribute('role', 'dialog');
+        inspector.setAttribute('aria-modal', 'true');
+        inspector.setAttribute('aria-labelledby', 'pointHeading');
+        const focusTarget = $(options.focusSelector || '#mobilePointClose') || $('#pointForm input[name="name"]');
+        requestAnimationFrame(() => focusTarget?.focus());
+        return true;
+      },
+      close(options = {}) {
+        releaseDetail(options);
+        detailHistoryOpen = false;
+      },
+      isOpen() { return Boolean(detailContext); }
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || !detailContext) return;
+      event.preventDefault();
+      window.DIMobileDetail.close();
+      if (location.hash === '#plan-device' || location.hash === '#plan-new-device') history.back();
+    });
+
+    new MutationObserver(() => {
+      if (detailContext && !document.body.classList.contains('mobile-point-detail')) {
+        releaseDetail({ restoreFocus: true });
+      }
+    }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+
   function attachOverlayHistory() {
+    if (overlaysBound) return;
+    overlaysBound = true;
     document.addEventListener('click', event => {
       if (!isMobile()) return;
+      if (event.target.closest('#mobilePointClose')) {
+        window.DIMobileDetail?.close();
+        if (location.hash === '#plan-device' || location.hash === '#plan-new-device') history.back();
+        return;
+      }
       if (event.target.closest('[data-point]') && document.body.classList.contains('mobile-section-plan') && !document.body.classList.contains('mobile-floor-edit')) {
         setTimeout(() => {
-          if (document.body.classList.contains('mobile-point-detail')) history.pushState({ mobileSection: 'plan', overlay: 'point' }, '', '#plan-device');
+          if (!document.body.classList.contains('mobile-point-detail')) return;
+          window.DIMobileDetail?.open({ returnFocus: event.target.closest('[data-point]') });
+          detailHistoryOpen = true;
+          history.pushState({ mobileSection: 'plan', overlay: 'point' }, '', '#plan-device');
         }, 0);
       }
       if (event.target.closest('#mobileReferenceButton')) {
         setTimeout(() => {
-          if (document.body.classList.contains('mobile-reference-open')) history.pushState({ mobileSection: 'plan', overlay: 'reference' }, '', '#plan-reference');
+          if (document.body.classList.contains('mobile-reference-open')) {
+            referenceHistoryOpen = true;
+            history.pushState({ mobileSection: 'plan', overlay: 'reference' }, '', '#plan-reference');
+          }
         }, 0);
       }
     });
   }
 
   function initialiseRoute() {
-    const initial = ['plan', 'devices', 'handover', 'more'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'plan';
+    const initial = sectionFromHash();
     history.replaceState({ mobileSection: initial }, '', `#${initial}`);
     route(initial, { fromHistory: true });
+  }
+
+  function ensureMobileShell(options = {}) {
+    if (!isMobile()) return;
+    buildTopBar();
+    buildBottomNav();
+    moveFloorControlsToPlan();
+    buildDevicesView();
+    buildMoreView();
+    installMobileDetailApi();
+    enableImmediateNewDeviceDetails();
+    attachOverlayHistory();
+    if (options.initial) initialiseRoute();
+    else route(sectionFromHash(), { fromHistory: true });
+    refreshShellState();
   }
 
   function openDeferredDevice() {
@@ -233,16 +367,35 @@
 
   window.addEventListener('popstate', event => {
     if (!isMobile()) return;
-    document.body.classList.remove('mobile-new-device-detail');
+    if (detailHistoryOpen) {
+      detailHistoryOpen = false;
+      window.DIMobileDetail?.close({ restoreFocus: true });
+      return;
+    }
+    if (referenceHistoryOpen) {
+      referenceHistoryOpen = false;
+      return;
+    }
+    if (document.body.classList.contains('mobile-floor-edit')) {
+      if (typeof window.DIMobileEditSession?.cancelFromHistory === 'function') {
+        window.DIMobileEditSession.cancelFromHistory();
+      } else {
+        currentSection = 'plan';
+        history.replaceState({ mobileSection: 'plan', editSession: true }, '', '#plan');
+      }
+      return;
+    }
+    window.DIMobileDetail?.close({ restoreFocus: false });
     const section = event.state?.mobileSection || (['plan', 'devices', 'handover', 'more'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'plan');
     route(section, { fromHistory: true });
   });
 
   window.addEventListener('resize', () => {
     if (isMobile()) {
-      moveFloorControlsToPlan();
+      ensureMobileShell();
       return;
     }
+    window.DIMobileDetail?.close({ restoreFocus: false });
     clearSectionClasses();
     if (floorOrigin && $('#floorControls')) floorOrigin.parent.insertBefore($('#floorControls'), floorOrigin.before || null);
     if (addressOrigin && $('.address-editor')) addressOrigin.parent.insertBefore($('.address-editor'), addressOrigin.before || null);
@@ -250,15 +403,15 @@
 
   window.addEventListener('load', () => {
     if (!isMobile()) return;
-    buildTopBar();
-    buildBottomNav();
-    moveFloorControlsToPlan();
-    buildDevicesView();
-    buildMoreView();
-    enableImmediateNewDeviceDetails();
-    attachOverlayHistory();
-    initialiseRoute();
-    refreshAppBar();
+    ensureMobileShell({ initial: true });
+    [50, 200, 600].forEach(delay => setTimeout(refreshShellState, delay));
     openDeferredDevice();
+  });
+
+  window.addEventListener('di:app-state-ready', refreshShellState);
+  window.addEventListener('di:address-editor-ready', () => {
+    buildMoreView();
+    rehomeAddressEditor();
+    refreshAppBar();
   });
 })();

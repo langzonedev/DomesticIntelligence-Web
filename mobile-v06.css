@@ -46,12 +46,20 @@
   .mobile-reference-content #planInspector label input[type="range"]{margin:0;width:100%}
   .mobile-reference-content #planInspector .two-fields{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px}
   .mobile-reference-content #planInspector .two-fields label{display:block!important}
-  .mobile-reference-content #planInspector .two-fields input{min-height:40px;padding:6px 10px}
+  .mobile-reference-content #planInspector .two-fields input{min-height:44px;padding:6px 10px}
   .mobile-floor-edit.mobile-reference-open .map-stage{max-height:calc(100dvh - 178px)!important;width:min(100%,calc((100dvh - 178px)*2/3))!important}
 
   .mobile-top-appbar-subtitle{max-width:calc(100vw - 90px)}
   .project-address-display{display:none!important}
+  .floor-choice{min-height:44px}
+  .mobile-point-detail .inspector-card[role="dialog"]{overscroll-behavior:contain}
+  .mobile-point-detail .inspector-card[role="dialog"]:focus{outline:none}
+  .check-editor-row{grid-template-columns:1fr!important}
 }
+
+.floor-choice,
+.check-editor-row .inline-choice{min-height:44px}
+.address-editor-row input{min-height:44px}
 
 @media(prefers-color-scheme:dark){
   .mobile-device-row{color:#e8f1ed}

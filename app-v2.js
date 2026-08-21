@@ -2,9 +2,10 @@
   'use strict';
 
   const Core = window.DIEditorCore;
+  const Property = window.DIPropertyModel;
   const Store = window.DIStorage;
   const Exporters = window.DIExporters;
-  if (!Core || !Store || !Exporters) throw new Error('Domestic Intelligence modules did not load.');
+  if (!Core || !Property || !Store || !Exporters) throw new Error('Domestic Intelligence modules did not load.');
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const THEME_KEY = 'domestic-intelligence-theme-v2';
@@ -46,6 +47,7 @@
   function slug(value) { return String(value || 'domestic-intelligence').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'domestic-intelligence'; }
   function flash(message) { el.toast.textContent = message; el.toast.classList.add('show'); clearTimeout(flash.timer); flash.timer = setTimeout(() => el.toast.classList.remove('show'), 2200); }
   function labelStatus(status) { return status === 'ready' ? 'Ready' : status === 'attention' ? 'Needs attention' : status === 'empty' ? 'No devices' : 'Not tested'; }
+  function propertyLabel(current = state()) { return current.home.address || current.home.name; }
 
   async function loadInitialState() {
     let saved = await Store.loadState();
@@ -69,6 +71,26 @@
       try { await Store.saveState(history.present); }
       catch (error) { showConnection(error.message); }
     }, 120);
+  }
+
+  function cancelScheduledSave() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+
+  function replaceRuntimeState(next) {
+    cancelScheduledSave();
+    const normalised = Core.normaliseState(next);
+    history = Core.createHistory(normalised, 80);
+    previewState = null;
+    selection = {
+      type: normalised.selected?.wallId ? 'wall' : 'point',
+      id: normalised.selected?.wallId || normalised.selected?.pointId || normalised.map.points[0]?.id || null
+    };
+    editorTool = 'select';
+    wallStart = null;
+    drag = null;
+    render();
   }
 
   function commit(next, message) {
@@ -111,12 +133,12 @@
     el.modeHint.textContent = editing ? 'Edit mode: drag devices and walls; round handles resize selected walls.' : 'View mode prevents accidental map changes.';
     el.undo.disabled = !history.past.length;
     el.redo.disabled = !history.future.length;
-    el.projectName.textContent = current.home.name;
+    el.projectName.textContent = propertyLabel(current);
     renderSummary(); renderLayers(); renderMap(); renderInspector(); renderHandover();
   }
 
   function renderSummary() {
-    const summary = Core.getReadinessSummary(state());
+    const summary = Property.getPropertyReadiness(state());
     const percent = summary.totalChecks ? Math.round(summary.passedChecks / summary.totalChecks * 100) : 0;
     el.readiness.innerHTML = `<strong>${percent}% checked</strong><span>${labelStatus(summary.status)} · ${summary.passedChecks}/${summary.totalChecks} checks passed · ${summary.devices} devices</span>`;
   }
@@ -197,22 +219,23 @@
   }
 
   function exportShape() {
-    const current = state();
-    return {
-      projectName: current.home.name,
-      rooms: current.rooms.map(room => ({ ...room, devices: current.map.points.filter(point => point.roomId === room.id).map(point => ({ ...point, type: point.category })) }))
-    };
+    return Property.toExportShape(state());
   }
 
   function renderHandover() {
-    const current = state(), status = Core.deriveHomeReadiness(current), summary = Core.getReadinessSummary(current);
+    const current = Property.syncActiveFloor(state()), summary = Property.getPropertyReadiness(current), status = summary.status;
     const remaining = summary.totalChecks - summary.passedChecks;
     const handoverDetail = status === 'ready' ? 'All recorded acceptance checks have passed.' : summary.devices === 0 ? 'Add at least one device before handover.' : `${remaining} ${remaining === 1 ? 'check' : 'checks'} still need testing or attention.`;
     el.handoverStatus.className = `handover-status${status === 'ready' ? ' ready' : ''}`;
     el.handoverStatus.innerHTML = `<strong>${status === 'ready' ? 'Ready to hand over' : 'Handover not ready yet'}</strong><br>${handoverDetail}`;
-    el.handoverRooms.innerHTML = current.rooms.map(room => {
-      const points = current.map.points.filter(point => point.roomId === room.id);
-      return `<section class="handover-room"><div class="section-heading"><h2>${escapeHtml(room.name)}</h2><span class="status-pill">${labelStatus(Core.deriveRoomReadiness(current, room.id))}</span></div>${points.length ? points.map(point => `<div class="handover-device"><strong>${escapeHtml(point.name)}</strong><span>${labelStatus(Core.deriveDeviceReadiness(point))}</span><div class="muted">${escapeHtml([point.brand, point.model].filter(Boolean).join(' ') || point.category)}</div></div>`).join('') : '<p class="muted">No devices recorded.</p>'}</section>`;
+    el.handoverRooms.innerHTML = current.home.floors.map(floor => {
+      const points = floor.map.points || [];
+      const statuses = points.map(Core.deriveDeviceReadiness);
+      const floorStatus = statuses.includes('attention') ? 'attention' : !statuses.length ? 'empty' : statuses.includes('pending') ? 'pending' : 'ready';
+      return `<section class="handover-room"><div class="section-heading"><h2>${escapeHtml(floor.name)}</h2><span class="status-pill">${labelStatus(floorStatus)}</span></div>${points.length ? points.map(point => {
+        const room = current.rooms.find(item => item.id === point.roomId);
+        return `<div class="handover-device"><strong>${escapeHtml(point.name)}</strong><span>${labelStatus(Core.deriveDeviceReadiness(point))}</span><div class="muted">${escapeHtml([room?.name, [point.brand, point.model].filter(Boolean).join(' ') || point.category].filter(Boolean).join(' · '))}</div></div>`;
+      }).join('') : '<p class="muted">No devices recorded on this storey.</p>'}</section>`;
     }).join('');
   }
 
@@ -371,7 +394,7 @@
     const current = state();
     if (!planSource || !current.map.floorplan || !current.map.layers.floorplan) return;
     const transform = current.map.floorplan.transform;
-    const fit = Math.min(1050 / planSource.width, 700 / planSource.height);
+    const fit = Math.min(canvas.width * 0.94 / planSource.width, canvas.height * 0.94 / planSource.height);
     const width = planSource.width * fit * transform.scale / 100;
     const height = planSource.height * fit * transform.scale / 100;
     context.save(); context.globalAlpha = transform.opacity / 100;
@@ -448,9 +471,9 @@
       try { await Store.removeFloorPlan(); floorRecord = null; planSource = null; commit({ ...state(), map: { ...state().map, floorplan: null } }, 'Floor plan removed.'); }
       catch (error) { flash(`Floor plan was not removed: ${error.message}`); }
     });
-    el.exportPdf.addEventListener('click', () => { Exporters.downloadBlob(Exporters.createHomeownerPdf(exportShape()), `${slug(state().home.name)}-handover.pdf`); flash('Homeowner PDF downloaded.'); });
-    el.exportCsv.addEventListener('click', () => { Exporters.downloadBlob(Exporters.createInstallerCsvBlob(exportShape()), `${slug(state().home.name)}-installer.csv`); flash('Installer CSV downloaded.'); });
-    el.exportJson.addEventListener('click', () => { Exporters.downloadBlob(Exporters.createInstallerJsonBlob(exportShape()), `${slug(state().home.name)}-installer.json`); flash('Installer JSON downloaded.'); });
+    el.exportPdf.addEventListener('click', () => { Exporters.downloadBlob(Exporters.createHomeownerPdf(exportShape()), `${slug(propertyLabel())}-handover.pdf`); flash('Homeowner PDF downloaded.'); });
+    el.exportCsv.addEventListener('click', () => { Exporters.downloadBlob(Exporters.createInstallerCsvBlob(exportShape()), `${slug(propertyLabel())}-installer.csv`); flash('Installer CSV downloaded.'); });
+    el.exportJson.addEventListener('click', () => { Exporters.downloadBlob(Exporters.createInstallerJsonBlob(exportShape()), `${slug(propertyLabel())}-installer.json`); flash('Installer JSON downloaded.'); });
     el.theme.addEventListener('change', () => applyTheme(el.theme.value));
     matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (el.theme.value === 'system') applyTheme('system'); });
     el.reset.addEventListener('click', async () => {
@@ -465,6 +488,12 @@
   async function init() {
     let theme = 'system'; try { theme = localStorage.getItem(THEME_KEY) || 'system'; } catch (_) {}
     applyTheme(theme); await loadInitialState(); bindEvents(); render();
+    window.DIAppBridge = Object.freeze({
+      getState: () => clone(history.present),
+      cancelScheduledSave,
+      replaceRuntimeState
+    });
+    window.dispatchEvent(new CustomEvent('di:app-state-ready'));
     if (!navigator.onLine) showConnection('Offline mode — the cached editor remains available and changes stay on this browser.');
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => showConnection('Offline installation is unavailable in this browser; the editor still works online.'));
   }

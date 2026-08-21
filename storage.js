@@ -6,6 +6,7 @@
   const RECORDS_STORE = 'records';
   const STATE_KEY = 'workspace-state-v2';
   const FLOOR_PLAN_KEY = 'floor-plan-v2';
+  const FLOOR_PLAN_KEY_PREFIX = 'floor-plan-v3:';
   const FALLBACK_PREFIX = 'domestic-intelligence-v02:';
   const MAX_FLOOR_PLAN_BYTES = 15 * 1024 * 1024;
   const MAX_FALLBACK_BYTES = 3 * 1024 * 1024;
@@ -15,6 +16,7 @@
     'image/webp',
     'application/pdf'
   ]);
+  let legacyFloorPlanMigration = Promise.resolve();
 
   function byteSize(value) {
     if (value == null) return 0;
@@ -44,6 +46,16 @@
       };
     }
     return { ok: true, size, type };
+  }
+
+  function normaliseFloorId(floorId) {
+    const value = String(floorId == null ? '' : floorId).trim();
+    if (!value) throw new TypeError('A floor id is required.');
+    return value;
+  }
+
+  function floorPlanKey(floorId) {
+    return `${FLOOR_PLAN_KEY_PREFIX}${encodeURIComponent(normaliseFloorId(floorId))}`;
   }
 
   function getLocalStorage() {
@@ -200,9 +212,17 @@
       : null;
   }
 
-  async function saveFloorPlan(file, metadata = {}) {
+  function requestedFloorId(metadata, floorId) {
+    if (floorId !== undefined && floorId !== null) return normaliseFloorId(floorId);
+    if (metadata && metadata.floorId !== undefined && metadata.floorId !== null) return normaliseFloorId(metadata.floorId);
+    return null;
+  }
+
+  async function saveFloorPlan(file, metadata = {}, floorId) {
     const validation = validateFloorPlan(file);
     if (!validation.ok) throw new Error(validation.error);
+    const scopedFloorId = requestedFloorId(metadata, floorId);
+    const recordKey = scopedFloorId ? floorPlanKey(scopedFloorId) : FLOOR_PLAN_KEY;
     const safeMetadata = {
       name: String(metadata.name || file.name || 'Floor plan'),
       type: validation.type,
@@ -210,9 +230,10 @@
       transform: metadata.transform && typeof metadata.transform === 'object' ? metadata.transform : null,
       savedAt: new Date().toISOString()
     };
+    if (scopedFloorId) safeMetadata.floorId = scopedFloorId;
     try {
-      await idbRequest('readwrite', store => store.put({ ...safeMetadata, blob: file }, FLOOR_PLAN_KEY));
-      clearFallback(getLocalStorage(), FLOOR_PLAN_KEY);
+      await idbRequest('readwrite', store => store.put({ ...safeMetadata, blob: file }, recordKey));
+      clearFallback(getLocalStorage(), recordKey);
       return { storage: 'indexeddb', metadata: safeMetadata };
     } catch (idbError) {
       if (validation.size > MAX_FALLBACK_BYTES) {
@@ -221,36 +242,124 @@
       const local = getLocalStorage();
       if (!local) throw new Error(`Floor-plan storage is unavailable: ${idbError.message}`);
       const dataUrl = await blobToDataURL(file);
-      writeFallback(local, FLOOR_PLAN_KEY, { ...safeMetadata, dataUrl });
+      writeFallback(local, recordKey, { ...safeMetadata, dataUrl });
       return { storage: 'localstorage', metadata: safeMetadata, warning: 'Saved with limited browser fallback storage.' };
     }
   }
 
-  async function loadFloorPlan() {
-    return getRecord(FLOOR_PLAN_KEY);
+  async function migrateLegacyFloorPlan(floorId) {
+    const scopedFloorId = normaliseFloorId(floorId);
+    const scopedKey = floorPlanKey(scopedFloorId);
+    const task = async () => {
+      const existing = await getRecord(scopedKey);
+      if (existing) return existing;
+      const legacy = await getRecord(FLOOR_PLAN_KEY);
+      if (!legacy) return null;
+      const migrated = { ...legacy, floorId: scopedFloorId, migratedFrom: FLOOR_PLAN_KEY };
+      const copied = await putRecord(scopedKey, migrated);
+      if (copied.storage === 'localstorage' && migrated.blob) {
+        const size = byteSize(migrated.blob);
+        if (size > MAX_FALLBACK_BYTES) {
+          clearFallback(getLocalStorage(), scopedKey);
+          throw new Error(`IndexedDB is unavailable and this ${formatBytes(size)} legacy plan exceeds the ${formatBytes(MAX_FALLBACK_BYTES)} fallback limit. The original plan was preserved.`);
+        }
+        try {
+          const dataUrl = await blobToDataURL(migrated.blob);
+          const { blob: _blob, ...fallbackRecord } = migrated;
+          writeFallback(getLocalStorage(), scopedKey, { ...fallbackRecord, dataUrl });
+        } catch (error) {
+          clearFallback(getLocalStorage(), scopedKey);
+          throw error;
+        }
+      }
+      const verified = await getRecord(scopedKey);
+      if (!verified || (!verified.blob && !verified.dataUrl)) {
+        clearFallback(getLocalStorage(), scopedKey);
+        throw new Error('The legacy floor plan could not be verified after migration. The original plan was preserved.');
+      }
+      await deleteRecord(FLOOR_PLAN_KEY);
+      return verified;
+    };
+    const run = legacyFloorPlanMigration.then(task, task);
+    legacyFloorPlanMigration = run.catch(() => null);
+    return run;
   }
 
-  async function clearAll() {
-    await Promise.all([deleteRecord(STATE_KEY), deleteRecord(FLOOR_PLAN_KEY)]);
+  async function loadFloorPlan(floorId, options = {}) {
+    if (floorId === undefined || floorId === null) return getRecord(FLOOR_PLAN_KEY);
+    const scopedFloorId = normaliseFloorId(floorId);
+    const existing = await getRecord(floorPlanKey(scopedFloorId));
+    if (existing || options.migrateLegacy === false) return existing;
+    return migrateLegacyFloorPlan(scopedFloorId);
+  }
+
+  async function removeFloorPlan(floorId) {
+    const key = floorId === undefined || floorId === null ? FLOOR_PLAN_KEY : floorPlanKey(floorId);
+    return deleteRecord(key);
+  }
+
+  async function storedFloorPlanKeys() {
+    const keys = new Set([FLOOR_PLAN_KEY]);
+    try {
+      const idbKeys = await idbRequest('readonly', store => store.getAllKeys());
+      (Array.isArray(idbKeys) ? idbKeys : []).forEach(key => {
+        if (typeof key === 'string' && key.startsWith(FLOOR_PLAN_KEY_PREFIX)) keys.add(key);
+      });
+    } catch (_) {
+      // Explicit floor ids and browser fallback keys still provide a safe cleanup path.
+    }
+    const local = getLocalStorage();
+    if (local && Number.isFinite(Number(local.length)) && typeof local.key === 'function') {
+      for (let index = 0; index < local.length; index += 1) {
+        const key = local.key(index);
+        const prefix = fallbackKey(FLOOR_PLAN_KEY_PREFIX);
+        if (typeof key === 'string' && key.startsWith(prefix)) keys.add(key.slice(FALLBACK_PREFIX.length));
+      }
+    }
+    return [...keys];
+  }
+
+  async function clearFloorPlans(floorIds = []) {
+    const keys = new Set(await storedFloorPlanKeys());
+    (Array.isArray(floorIds) ? floorIds : [floorIds]).filter(value => value !== undefined && value !== null && String(value).trim()).forEach(floorId => keys.add(floorPlanKey(floorId)));
+    return Promise.all([...keys].map(key => deleteRecord(key)));
+  }
+
+  async function clearAll(floorIds = []) {
+    let stateFloorIds = [];
+    try {
+      const state = await loadState();
+      stateFloorIds = Array.isArray(state && state.home && state.home.floors)
+        ? state.home.floors.map(floor => floor && floor.id).filter(Boolean)
+        : [];
+    } catch (_) {
+      // Cleanup remains useful even when the saved state is malformed.
+    }
+    await clearFloorPlans([...stateFloorIds, ...(Array.isArray(floorIds) ? floorIds : [floorIds])]);
+    await deleteRecord(STATE_KEY);
   }
 
   const api = Object.freeze({
     DB_NAME,
     STATE_KEY,
     FLOOR_PLAN_KEY,
+    FLOOR_PLAN_KEY_PREFIX,
     MAX_FLOOR_PLAN_BYTES,
     MAX_FALLBACK_BYTES,
     ALLOWED_FLOOR_PLAN_TYPES,
     byteSize,
     formatBytes,
     validateFloorPlan,
+    floorPlanKey,
     blobToDataURL,
     saveState,
     loadState,
     clearState: () => deleteRecord(STATE_KEY),
     saveFloorPlan,
     loadFloorPlan,
-    removeFloorPlan: () => deleteRecord(FLOOR_PLAN_KEY),
+    migrateLegacyFloorPlan,
+    removeFloorPlan,
+    clearFloorPlans,
     clearAll
   });
 
