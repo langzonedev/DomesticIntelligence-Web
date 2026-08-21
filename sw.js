@@ -1,5 +1,7 @@
-const CACHE='domestic-intelligence-v07-15';
-const SHELL=['./','./index.html','./theme.css','./theme-v07.css','./theme-bridge.css','./v2.css','./mobile-v03.css','./mobile-v06.css','./ui-kit.css','./atlas-v07.css','./editor-core.js','./property-model.js','./storage.js','./exporters.js','./ui-icons.js','./ui-kit.js','./state-guard-v04.js','./mobile-v03.js','./app-v2.js','./mobile-v05.js','./atlas-v07.js','./manifest.webmanifest','./brand-mark.svg','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./vendor/pdf.min.mjs','./vendor/pdf.worker.min.mjs','./vendor/PDFJS-LICENSE'];
+const CACHE='domestic-intelligence-v07-16';
+const VERSION='07-16';
+const versioned=path=>`${path}?v=${VERSION}`;
+const SHELL=['./','./index.html',...['./theme.css','./theme-v07.css','./theme-bridge.css','./v2.css','./mobile-v03.css','./mobile-v06.css','./ui-kit.css','./atlas-v07.css','./editor-core.js','./property-model.js','./storage.js','./exporters.js','./ui-icons.js','./ui-kit.js','./state-guard-v04.js','./mobile-v03.js','./app-v2.js','./mobile-v05.js','./atlas-v07.js','./manifest.webmanifest'].map(versioned),'./brand-mark.svg','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./vendor/pdf.min.mjs','./vendor/pdf.worker.min.mjs','./vendor/PDFJS-LICENSE'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
@@ -20,11 +22,8 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  event.respondWith(caches.match(event.request).then(cached=>{
-    const refreshed=fetch(event.request).then(response=>{
-      if(response.ok&&response.type==='basic')caches.open(CACHE).then(cache=>cache.put(event.request,response.clone()));
-      return response;
-    }).catch(()=>cached||new Response('',{status:503,statusText:'Offline'}));
-    return cached||refreshed;
-  }));
+  event.respondWith(fetch(event.request).then(response=>{
+    if(response.ok&&response.type==='basic')event.waitUntil(caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())));
+    return response;
+  }).catch(()=>caches.match(event.request).then(cached=>cached||new Response('',{status:503,statusText:'Offline'}))));
 });

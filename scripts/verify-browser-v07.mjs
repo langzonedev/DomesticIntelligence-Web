@@ -11,10 +11,29 @@ const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; chars
 const failures = [];
 const evidence = [];
 const assert = (condition, message) => { if (!condition) failures.push(message); };
+const legacyMixingWorker = `
+const CACHE='domestic-intelligence-legacy-mixing-test';
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.put('./app-v2.js',new Response('throw new Error("Legacy runtime was mixed into the new shell")',{headers:{'content-type':'text/javascript'}}))).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  if(event.request.mode==='navigate'){event.respondWith(fetch(event.request));return;}
+  event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)));
+});`;
 
 const server = http.createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    if (pathname === '/__legacy-sw.js') {
+      response.writeHead(200, { 'content-type':'text/javascript; charset=utf-8', 'cache-control':'no-store', 'service-worker-allowed':'/' });
+      response.end(legacyMixingWorker);
+      return;
+    }
+    if (pathname === '/__legacy-bootstrap') {
+      response.writeHead(200, { 'content-type':'text/html; charset=utf-8', 'cache-control':'no-store' });
+      response.end('<!doctype html><title>Legacy shell bootstrap</title>');
+      return;
+    }
     const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
     const target = path.resolve(root, relative);
     if (!target.startsWith(root)) throw new Error('Invalid path');
@@ -28,6 +47,27 @@ const chromePath = process.env.DI_CHROME_PATH || 'C:/Program Files/Google/Chrome
 const browser = await chromium.launch({ headless:true, executablePath:chromePath });
 
 try {
+  const upgradeContext = await browser.newContext({ serviceWorkers:'allow', colorScheme:'light' });
+  const upgradePage = await upgradeContext.newPage();
+  const upgradeErrors = [];
+  upgradePage.on('pageerror', error => upgradeErrors.push(error.message));
+  await upgradePage.goto(`${origin}__legacy-bootstrap`, { waitUntil:'domcontentloaded' });
+  await upgradePage.evaluate(async () => {
+    await navigator.serviceWorker.register('/__legacy-sw.js', { scope:'/' });
+    await navigator.serviceWorker.ready;
+  });
+  await upgradePage.reload({ waitUntil:'domcontentloaded' });
+  await upgradePage.goto(`${origin}?legacy-upgrade`, { waitUntil:'networkidle' });
+  await upgradePage.waitForSelector('#mapStage');
+  const releaseBoundary = await upgradePage.evaluate(() => ({
+    fatal:Boolean(document.querySelector('.fatal')),
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-16')),
+    scripts:[...document.scripts].every(script=>script.src.includes('?v=07-16'))
+  }));
+  assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
+  assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
+  await upgradeContext.close();
+
   const context = await browser.newContext({ serviceWorkers:'allow', colorScheme:'light' });
   const page = await context.newPage();
   const runtimeErrors = [];
