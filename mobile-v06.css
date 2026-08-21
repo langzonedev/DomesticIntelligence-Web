@@ -36,7 +36,7 @@
   .mobile-new-device-detail #pointInspector .inspector-heading .eyebrow{font-size:.78rem}
   .mobile-new-device-detail #pointHeading::before{content:'New device · ';font-weight:500;color:var(--muted,#91a79f)}
 
-  .mobile-reference-sheet{left:10px!important;right:10px!important;bottom:calc(env(safe-area-inset-bottom) + 10px)!important;max-height:34dvh!important;padding:10px 12px 12px!important;background:color-mix(in srgb,var(--surface,#10231d) 88%,transparent)!important}
+  .mobile-reference-sheet{left:10px!important;right:10px!important;bottom:calc(env(safe-area-inset-bottom) + 10px)!important;max-height:34dvh!important;padding:10px 12px 12px!important;background:color-mix(in srgb,var(--surface,#100A1F) 88%,transparent)!important}
   .mobile-reference-heading{padding:8px 0 6px!important;top:-10px!important}
   .mobile-reference-heading small{font-size:.74rem}
   .mobile-reference-content #planInspector{display:grid!important;grid-template-columns:1fr;gap:5px}
@@ -60,6 +60,51 @@
 .floor-choice,
 .check-editor-row .inline-choice{min-height:44px}
 .address-editor-row input{min-height:44px}
+
+/* Keep the phone interaction contract when a handset is rotated beyond 760px wide. */
+@media (max-height:500px) and (max-width:950px), (orientation:landscape) and (pointer:coarse) and (max-width:950px){
+  body.atlas-short-landscape .mobile-bottom-nav{display:grid!important}
+  body.atlas-short-landscape .mobile-device-summary:not([hidden]){
+    display:grid!important;
+    gap:10px;
+    position:fixed;
+    z-index:1450;
+    right:8px;
+    bottom:calc(60px + env(safe-area-inset-bottom));
+    left:8px;
+    max-height:calc(100dvh - 70px);
+    padding:8px 16px 14px;
+    overflow:auto;
+    border:1px solid var(--di-border,var(--border,#36554c));
+    border-radius:16px;
+    background:var(--di-surface,var(--surface,#fff));
+    box-shadow:0 24px 64px rgb(5 3 12 / 38%);
+  }
+  body.atlas-short-landscape.mobile-point-detail{overflow:hidden;padding:0}
+  body.atlas-short-landscape.mobile-point-detail .mobile-top-appbar,
+  body.atlas-short-landscape.mobile-point-detail .mobile-bottom-nav,
+  body.atlas-short-landscape.mobile-point-detail .editor-mode-bar,
+  body.atlas-short-landscape.mobile-point-detail .atlas-commandbar{display:none!important}
+  body.atlas-short-landscape.mobile-point-detail .inspector-card[role="dialog"]{
+    display:block!important;
+    position:fixed;
+    z-index:1500;
+    inset:0;
+    max-height:none;
+    padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 16px);
+    overflow:auto;
+    border-radius:0;
+    background:var(--di-surface,var(--surface,#fff));
+    overscroll-behavior:contain;
+  }
+  body.atlas-short-landscape.mobile-point-detail .inspector-card>details,
+  body.atlas-short-landscape.mobile-point-detail #planInspector,
+  body.atlas-short-landscape.mobile-point-detail #wallInspector,
+  body.atlas-short-landscape.mobile-point-detail #inspectorEmpty{display:none!important}
+  body.atlas-short-landscape.mobile-point-detail #pointInspector{display:block!important}
+  body.atlas-short-landscape.mobile-point-detail .mobile-point-close{display:inline-flex!important}
+  body.atlas-short-landscape.mobile-new-device-detail .mobile-point-close{display:none!important}
+}
 
 @media(prefers-color-scheme:dark){
   .mobile-device-row{color:#e8f1ed}

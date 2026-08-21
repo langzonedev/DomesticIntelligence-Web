@@ -8,7 +8,7 @@
   const PORTRAIT_WIDTH = 800;
   const PORTRAIT_HEIGHT = 1200;
   const DEFAULT_ADDRESS = '12 Willow Street, Adelaide SA 5000';
-  const DEFAULT_LAYERS = Object.freeze({ floorplan: true, walls: true, devices: true, status: true, labels: true });
+  const DEFAULT_LAYERS = Object.freeze({ floorplan: true, walls: true, openings: true, roomLabels: true, devices: true, status: true, deviceLabels: true, network: false });
 
   function clone(value) {
     if (typeof structuredClone === 'function') return structuredClone(value);
@@ -35,6 +35,15 @@
     const next = clone(map || {});
     const sourceWidth = Math.max(1, finite(next.width, 1200));
     const sourceHeight = Math.max(1, finite(next.height, 800));
+    const normaliseViewport = Core && typeof Core.setMapViewport === 'function'
+      ? viewport => Core.setMapViewport(Core.createInitialState(), viewport).map.viewport
+      : viewport => ({ x: finite(viewport && viewport.x, 0), y: finite(viewport && viewport.y, 0), zoom: Math.min(8, Math.max(0.1, finite(viewport && viewport.zoom, 1))) });
+    next.viewport = normaliseViewport(next.viewport);
+    if (!Object.prototype.hasOwnProperty.call(next, 'calibration')) next.calibration = null;
+    next.layers = Object.fromEntries(Object.entries(DEFAULT_LAYERS).map(([key, fallback]) => [key, typeof next.layers?.[key] === 'boolean' ? next.layers[key] : key === 'deviceLabels' && typeof next.layers?.labels === 'boolean' ? next.layers.labels : fallback]));
+    next.layerLocks = Object.fromEntries(Object.keys(DEFAULT_LAYERS).map(key => [key, Boolean(next.layerLocks?.[key])]));
+    next.openings = Array.isArray(next.openings) ? next.openings : [];
+    next.roomLabels = Array.isArray(next.roomLabels) ? next.roomLabels : [];
     if (next.orientation === 'portrait-v03' || sourceHeight > sourceWidth) {
       next.orientation = 'portrait-v03';
       next.width = sourceWidth;
@@ -46,6 +55,7 @@
     next.width = PORTRAIT_WIDTH;
     next.height = PORTRAIT_HEIGHT;
     next.orientation = 'portrait-v03';
+    next.viewport = { ...next.viewport, x: next.viewport.x * sx, y: next.viewport.y * sy };
     next.walls = (Array.isArray(next.walls) ? next.walls : []).map(wall => ({
       ...wall,
       x1: finite(wall && wall.x1, 0) * sx,
@@ -76,8 +86,13 @@
       orientation: 'portrait-v03',
       gridSize: Math.max(1, finite(source.gridSize, 20)),
       snapDistance: Math.max(0, finite(source.snapDistance, 14)),
+      viewport: { x: 0, y: 0, zoom: 1 },
+      calibration: null,
       layers: { ...DEFAULT_LAYERS },
+      layerLocks: Object.fromEntries(Object.keys(DEFAULT_LAYERS).map(key => [key, false])),
       floorplan: null,
+      openings: [],
+      roomLabels: [],
       walls: [],
       points: []
     };
@@ -148,13 +163,18 @@
 
   function normalisePropertyState(value, options = {}) {
     const core = requireCore();
-    const source = value && typeof value === 'object' ? clone(value) : core.createInitialState();
+    const rawSource = value && typeof value === 'object' ? clone(value) : core.createInitialState();
+    const migratedSource = [2, core.SCHEMA_VERSION].includes(rawSource.schemaVersion) && typeof core.migrateV6ToV7 === 'function'
+      ? core.migrateV6ToV7(rawSource)
+      : null;
+    const source = migratedSource || (typeof core.stripCredentialLikeValues === 'function'
+      ? core.stripCredentialLikeValues(core.stripCredentialLikeKeys(rawSource))
+      : rawSource);
     const coreState = core.normaliseState(source);
     const rooms = coreState.rooms;
     const sourceHome = source.home && typeof source.home === 'object' ? source.home : {};
     const home = {
-      ...coreState.home,
-      ...sourceHome,
+      id: text(sourceHome.id, text(coreState.home.id, 'home')),
       name: text(sourceHome.name, coreState.home.name),
       address: text(sourceHome.address, text(options.defaultAddress, DEFAULT_ADDRESS))
     };
@@ -172,7 +192,6 @@
       idByIndex[index] = id;
       const fallback = index === 0 ? topMap : blankMap(topMap);
       return {
-        ...sourceFloor,
         id,
         name: text(sourceFloor.name, index === 0 ? 'Ground floor' : `Level ${index}`),
         map: safeMap(sourceFloor.map, fallback, rooms, home)
@@ -191,6 +210,11 @@
     }
     coreState.home = { ...home, floors, activeFloorId: active.id };
     coreState.selected = safeSelection(coreState.map, rooms, source.selected || coreState.selected);
+    if ((typeof core.hasCredentialLikeKeys === 'function' && core.hasCredentialLikeKeys(coreState)) ||
+        (typeof core.hasCredentialLikeValues === 'function' && core.hasCredentialLikeValues(coreState)) ||
+        !core.validateState(coreState)) {
+      return core.normaliseState(coreState);
+    }
     return coreState;
   }
 

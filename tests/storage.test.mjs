@@ -133,6 +133,27 @@ test('an aborted IndexedDB replacement makes the successful fallback authoritati
   assert.equal((await storage.loadState()).label, 'LATEST-IDB');
 });
 
+test('fallback cleanup failure cannot misclassify or override a committed IndexedDB plan', async () => {
+  const indexedDB = makeIndexedDb();
+  const localStorage = makeLocalStorage();
+  const storage = await loadStorage(indexedDB, localStorage);
+  const oldPlan = namedPng('old', 'old-plan.png');
+  const newPlan = namedPng('new', 'new-plan.png');
+
+  await storage.saveFloorPlan(oldPlan, { name: oldPlan.name }, 'ground');
+  indexedDB.control.abortWrites = false;
+  await new Promise(resolve => setTimeout(resolve, 5));
+  const removeItem = localStorage.removeItem;
+  localStorage.removeItem = () => { throw new Error('synthetic cleanup failure'); };
+  const result = await storage.saveFloorPlan(newPlan, { name: newPlan.name }, 'ground');
+  assert.equal(result.storage, 'indexeddb');
+
+  localStorage.removeItem = removeItem;
+  const loaded = await storage.loadFloorPlan('ground');
+  assert.equal(loaded.name, 'new-plan.png');
+  assert.equal(await loaded.blob.text(), 'new');
+});
+
 test('an aborted IndexedDB delete leaves an authoritative deletion marker', async () => {
   const old = { schemaVersion: 2, state: { label: 'MUST-STAY-DELETED' } };
   const indexedDB = makeIndexedDb(old);
@@ -142,6 +163,44 @@ test('an aborted IndexedDB delete leaves an authoritative deletion marker', asyn
   const removed = await storage.clearState();
   assert.equal(removed.storage, 'localstorage');
   assert.equal(await storage.loadState(), null);
+});
+
+test('fallback cleanup failure cannot misclassify or resurrect a committed IndexedDB deletion', async () => {
+  const indexedDB = makeIndexedDb();
+  indexedDB.control.abortWrites = false;
+  const localStorage = makeLocalStorage();
+  const storage = await loadStorage(indexedDB, localStorage);
+  const plan = namedPng('remove me', 'remove-me.png');
+  await storage.saveFloorPlan(plan, { name: plan.name }, 'ground');
+
+  const removeItem = localStorage.removeItem;
+  localStorage.removeItem = () => { throw new Error('synthetic cleanup failure'); };
+  const result = await storage.removeFloorPlan('ground');
+  assert.equal(result.storage, 'indexeddb');
+
+  localStorage.removeItem = removeItem;
+  assert.equal(await storage.loadFloorPlan('ground'), null);
+});
+
+test('a newer fallback plan supersedes an older IndexedDB tombstone after recovery', async () => {
+  const indexedDB = makeIndexedDb();
+  indexedDB.control.abortWrites = false;
+  const storage = await loadStorage(indexedDB, makeLocalStorage());
+  const oldPlan = namedPng('old', 'old-plan.png');
+  const recoveredPlan = namedPng('recovered', 'recovered-plan.png');
+  await storage.saveFloorPlan(oldPlan, { name: oldPlan.name }, 'ground');
+  await storage.removeFloorPlan('ground');
+
+  await new Promise(resolve => setTimeout(resolve, 5));
+  indexedDB.control.abortWrites = true;
+  const fallback = await storage.saveFloorPlan(recoveredPlan, { name: recoveredPlan.name }, 'ground');
+  assert.equal(fallback.storage, 'localstorage');
+
+  indexedDB.control.abortWrites = false;
+  const loaded = await storage.loadFloorPlan('ground');
+  assert.equal(loaded.name, 'recovered-plan.png');
+  if (loaded.blob) assert.equal(await loaded.blob.text(), 'recovered');
+  else assert.match(loaded.dataUrl, /cmVjb3ZlcmVk/);
 });
 
 function namedPng(contents, name) {

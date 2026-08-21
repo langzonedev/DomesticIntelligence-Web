@@ -5,10 +5,10 @@ import test from "node:test";
 const require = createRequire(import.meta.url);
 const core = require("../editor-core.js");
 
-test("factory creates independent, valid schema v2 synthetic states", () => {
+test("factory creates independent, valid schema v3 synthetic states", () => {
   const first = core.createInitialState();
   const second = core.createInitialState();
-  assert.equal(first.schemaVersion, 2);
+  assert.equal(first.schemaVersion, 3);
   assert.equal(core.validateState(first), true);
   first.map.layers.walls = false;
   assert.equal(second.map.layers.walls, true);
@@ -18,11 +18,11 @@ test("malformed state safely restores the baseline", () => {
   for (const malformed of [null, {}, { schemaVersion: 2 }, { schemaVersion: 99 }, { rooms: "bad" }]) {
     const recovered = core.normaliseState(malformed);
     assert.equal(core.validateState(recovered), true);
-    assert.equal(recovered.schemaVersion, 2);
+    assert.equal(recovered.schemaVersion, 3);
   }
 });
 
-test("schema v2 validation rejects unsafe modes, selections and floor-plan transforms", () => {
+test("schema v3 validation rejects unsafe modes, selections and floor-plan transforms", () => {
   const mutations = [
     state => { state.view = "bogus"; },
     state => { state.workspaceMode = "bogus"; },

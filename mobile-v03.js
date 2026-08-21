@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const MOBILE_QUERY = '(max-width: 760px)';
+  const MOBILE_QUERY = '(max-width: 760px), (max-height: 500px) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) and (max-width: 950px)';
   const PORTRAIT_WIDTH = 800;
   const PORTRAIT_HEIGHT = 1200;
   const DEFAULT_ADDRESS = '12 Willow Street, Adelaide SA 5000';
@@ -128,12 +128,12 @@
   window.DIStorage = Object.freeze(enhancedStore);
 
   try { localStorage.setItem(THEME_KEY, 'system'); } catch (_) {}
-  document.documentElement.dataset.theme = 'system';
+  document.documentElement.removeAttribute?.('data-theme');
 
   function syncThemeColor() {
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = matchMedia('(prefers-color-scheme: dark)').matches ? '#10231d' : '#f3f7f5';
-    document.documentElement.dataset.theme = 'system';
+    if (meta) meta.content = matchMedia('(prefers-color-scheme: dark)').matches ? '#100A1F' : '#F1F4FA';
+    document.documentElement.removeAttribute?.('data-theme');
   }
 
   function syncCanvasDimensions() {
@@ -372,6 +372,7 @@
   }
 
   async function beginEditSession() {
+    window.DIAtlasViewport?.flushPending?.();
     const runtimeState = window.DIAppBridge?.getState?.();
     const state = runtimeState || await enhancedStore.loadState() || window.DIEditorCore.createInitialState();
     activeFloorId = floorIdFor(state);
@@ -385,15 +386,18 @@
       stagedPlan: null
     };
     window.DIAppBridge?.cancelScheduledSave?.();
+    window.DIAtlasViewport?.cancelPending?.();
     return editSession;
   }
 
   async function commitEditSession() {
     if (!editSession?.active) return;
     const session = editSession;
+    window.DIAtlasViewport?.flushPending?.();
     const draft = ensureHomeMetadata(window.DIAppBridge?.getState?.() || session.draftState, { loadActiveMap: false });
     draft.workspaceMode = 'view';
     window.DIAppBridge?.cancelScheduledSave?.();
+    window.DIAtlasViewport?.cancelPending?.();
     try {
       if (session.stagedPlan?.action === 'save') {
         await originalStore.saveFloorPlan(session.stagedPlan.file, session.stagedPlan.metadata, session.floorId);
@@ -418,6 +422,7 @@
     if (!editSession?.active) return;
     const session = editSession;
     window.DIAppBridge?.cancelScheduledSave?.();
+    window.DIAtlasViewport?.cancelPending?.();
     try {
       await originalStore.saveState(session.stateSnapshot);
       await restoreFloorRecord(session.floorSnapshot, session.floorId);
@@ -562,6 +567,13 @@
     renderFloorControls();
   }
 
+  function blockStoreyChangeDuringEdit() {
+    if (!editSession?.active) return false;
+    window.DIAppBridge?.notify?.('Save or Cancel the current floor-plan edit before changing storeys.');
+    document.querySelector('#mobileEditSave')?.focus();
+    return true;
+  }
+
   async function renderFloorControls() {
     const section = document.querySelector('#floorControls');
     if (!section) return;
@@ -600,7 +612,10 @@
 
     section.querySelectorAll('[data-floor-id]').forEach(button => {
       button.addEventListener('click', async () => {
+      if (blockStoreyChangeDuringEdit()) return;
       if (button.dataset.floorId === state.home.activeFloorId) return;
+      window.DIAtlasViewport?.flushPending?.();
+      await window.DIAppBridge?.flushPendingWork?.();
       const fresh = await enhancedStore.loadState() || state;
       const switched = Property.activateFloor(fresh, button.dataset.floorId);
       await originalStore.saveState(switched);
@@ -622,6 +637,9 @@
     });
 
     section.querySelector('#addFloorButton')?.addEventListener('click', async () => {
+      if (blockStoreyChangeDuringEdit()) return;
+      window.DIAtlasViewport?.flushPending?.();
+      await window.DIAppBridge?.flushPendingWork?.();
       const fresh = await enhancedStore.loadState() || state;
       const number = fresh.home.floors.length;
       const id = `level-${Date.now().toString(36)}`;
@@ -695,7 +713,7 @@
 
     const point = event.target.closest('[data-point]');
     const viewMode = document.querySelector('[data-editor-mode="view"]')?.classList.contains('active');
-    if (point && isMobile() && viewMode) setTimeout(() => document.body.classList.add('mobile-point-detail'), 0);
+    if (point && isMobile() && viewMode) setTimeout(() => window.dispatchEvent(new CustomEvent('di:mobile-point-summary', { detail: { pointId: point.dataset.point, returnFocus: point } })), 0);
   }, true);
 
   window.addEventListener('popstate', () => {

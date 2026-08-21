@@ -146,8 +146,8 @@
 
   async function putRecord(key, value) {
     try {
-      await idbRequest('readwrite', store => store.put(value, key));
-      clearFallback(getLocalStorage(), key);
+      await idbRequest('readwrite', store => store.put({ ...value, __authority: 'indexeddb' }, key));
+      try { clearFallback(getLocalStorage(), key); } catch (_) { /* IndexedDB is already authoritative. */ }
       return { storage: 'indexeddb' };
     } catch (idbError) {
       const local = getLocalStorage();
@@ -159,30 +159,48 @@
 
   async function getRecord(key) {
     const local = getLocalStorage();
-    if (local && local.getItem(authorityKey(key)) === 'deleted') return null;
-    if (local && local.getItem(authorityKey(key)) === 'localstorage') {
-      const authoritative = readFallback(local, key);
-      if (authoritative !== null) return authoritative;
-    }
+    const authority = local && local.getItem(authorityKey(key));
+    const fallback = readFallback(local, key);
+    let indexed;
     try {
-      const value = await idbRequest('readonly', store => store.get(key));
-      if (value !== undefined) return value;
+      indexed = await idbRequest('readonly', store => store.get(key));
     } catch (_) {
       // A localStorage copy may still be recoverable.
     }
-    return readFallback(local, key);
+    if (indexed && indexed.__deleted === true) {
+      const fallbackTime = Date.parse(fallback?.savedAt || '') || 0;
+      const tombstoneTime = Date.parse(indexed.savedAt || '') || Number.MAX_SAFE_INTEGER;
+      if (authority === 'localstorage' && fallback !== null && fallbackTime > tombstoneTime) return fallback;
+      return null;
+    }
+    if (authority === 'deleted') {
+      if (indexed?.__authority === 'indexeddb') return indexed;
+      return null;
+    }
+    if (typeof authority === 'string' && authority.startsWith('deleted:')) {
+      const deletedTime = Date.parse(authority.slice('deleted:'.length)) || Number.MAX_SAFE_INTEGER;
+      const indexedTime = Date.parse(indexed?.savedAt || '') || 0;
+      if (indexed === undefined || deletedTime > indexedTime) return null;
+    }
+    if (authority === 'localstorage' && fallback !== null) {
+      const fallbackTime = Date.parse(fallback.savedAt || '') || 0;
+      const indexedTime = Date.parse(indexed?.savedAt || '') || 0;
+      if (indexed === undefined || fallbackTime > indexedTime) return fallback;
+    }
+    if (indexed !== undefined) return indexed;
+    return fallback;
   }
 
   async function deleteRecord(key) {
     try {
-      await idbRequest('readwrite', store => store.delete(key));
-      clearFallback(getLocalStorage(), key);
+      await idbRequest('readwrite', store => store.put({ __deleted: true, __authority: 'indexeddb', savedAt: new Date().toISOString() }, key));
+      try { clearFallback(getLocalStorage(), key); } catch (_) { /* The durable IndexedDB tombstone remains authoritative. */ }
       return { storage: 'indexeddb' };
     } catch (idbError) {
       const local = getLocalStorage();
       if (!local) throw new Error(`Could not remove local data: ${idbError.message}`);
       local.removeItem(fallbackKey(key));
-      local.setItem(authorityKey(key), 'deleted');
+      local.setItem(authorityKey(key), `deleted:${new Date().toISOString()}`);
       return { storage: 'localstorage', warning: 'IndexedDB removal failed; a local deletion marker will keep this item removed.' };
     }
   }
@@ -232,8 +250,8 @@
     };
     if (scopedFloorId) safeMetadata.floorId = scopedFloorId;
     try {
-      await idbRequest('readwrite', store => store.put({ ...safeMetadata, blob: file }, recordKey));
-      clearFallback(getLocalStorage(), recordKey);
+      await idbRequest('readwrite', store => store.put({ ...safeMetadata, blob: file, __authority: 'indexeddb' }, recordKey));
+      try { clearFallback(getLocalStorage(), recordKey); } catch (_) { /* The committed IndexedDB record remains valid. */ }
       return { storage: 'indexeddb', metadata: safeMetadata };
     } catch (idbError) {
       if (validation.size > MAX_FALLBACK_BYTES) {

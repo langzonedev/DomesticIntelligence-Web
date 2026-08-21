@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const MOBILE_QUERY = '(max-width: 760px)';
+  const MOBILE_QUERY = '(max-width: 760px), (max-height: 500px) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) and (max-width: 950px)';
   const $ = selector => document.querySelector(selector);
   const icons = {
     plan: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/></svg>',
@@ -248,7 +248,7 @@
 
     const backgroundSelectors = [
       '.mobile-top-appbar', '.mobile-bottom-nav', '#floorControls', '.editor-mode-bar',
-      '.map-card', '.project-heading', '#mobileDevicesView', '#mobileMoreView', '#handoverView'
+      '.atlas-commandbar', '.map-card', '.project-heading', '#mobileDevicesView', '#mobileMoreView', '#handoverView'
     ];
 
     function releaseDetail(options = {}) {
@@ -262,7 +262,10 @@
       inspector.removeAttribute('role');
       inspector.removeAttribute('aria-modal');
       inspector.removeAttribute('aria-labelledby');
-      context.inerted.forEach(element => element.removeAttribute('inert'));
+      context.background.forEach(({ element, wasInert }) => {
+        if (wasInert) element.setAttribute('inert', '');
+        else element.removeAttribute('inert');
+      });
       if (options.restoreFocus !== false) {
         const target = context.returnFocus?.isConnected ? context.returnFocus : $('#mapStage');
         requestAnimationFrame(() => target?.focus());
@@ -274,9 +277,10 @@
         if (!isMobile()) return false;
         if (detailContext) releaseDetail({ restoreFocus: false });
         const returnFocus = options.returnFocus || document.activeElement;
-        const inerted = backgroundSelectors.map(selector => $(selector)).filter(element => element && !element.hasAttribute('inert'));
-        inerted.forEach(element => element.setAttribute('inert', ''));
-        detailContext = { returnFocus, inerted };
+        const background = [...new Set(backgroundSelectors.map(selector => $(selector)).filter(Boolean))]
+          .map(element => ({ element, wasInert: element.hasAttribute('inert') }));
+        background.forEach(({ element }) => element.setAttribute('inert', ''));
+        detailContext = { returnFocus, background };
         document.body.classList.add('mobile-point-detail');
         document.body.classList.toggle('mobile-new-device-detail', Boolean(options.newDevice));
         inspector.setAttribute('role', 'dialog');
@@ -294,7 +298,17 @@
     });
 
     document.addEventListener('keydown', event => {
-      if (event.key !== 'Escape' || !detailContext) return;
+      if (!detailContext) return;
+      if (event.key === 'Tab') {
+        const focusable = [...inspector.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')]
+          .filter(element => element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden');
+        if (!focusable.length) { event.preventDefault(); inspector.focus(); return; }
+        const first = focusable[0]; const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !inspector.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !inspector.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+        return;
+      }
+      if (event.key !== 'Escape') return;
       event.preventDefault();
       window.DIMobileDetail.close();
       if (location.hash === '#plan-device' || location.hash === '#plan-new-device') history.back();

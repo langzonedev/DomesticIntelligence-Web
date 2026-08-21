@@ -2,7 +2,14 @@
   'use strict';
 
   const DISCLAIMER = 'Prototype commissioning documentation only. Not electrical certification or compliance sign-off.';
-  const TECHNICAL_FIELDS = Object.freeze(['name', 'type', 'category', 'brand', 'model', 'serialNumber', 'ipAddress', 'installerNotes']);
+  const TECHNICAL_FIELDS = Object.freeze([
+    'name', 'type', 'category', 'brand', 'model', 'serialNumber', 'assetReference',
+    'protocol', 'networkAddress', 'macAddress', 'networkLabel', 'controllerReference', 'portReference',
+    'installationDate', 'installerBusiness', 'circuitReference', 'physicalLocationNotes', 'warrantyDate',
+    'firmwareVersion', 'lastTestedDate', 'issuesActions', 'maintenanceNotes', 'homeownerNotes', 'installerNotes'
+  ]);
+  const CREDENTIAL_VALUE = /(?:password|passphrase|wi-?fi\s+(?:password|key)|wireless\s+key|fabric\s+(?:secret|key)|private\s+key|api\s+(?:key|token)|access\s+token|refresh\s+token|bearer\s+token|psk|pin\s*code|setup\s*code)\s*[=:>]\s*(\S.*)$/i;
+  const NUMERIC_CREDENTIAL_VALUE = /(?:(?:door\s+)?pin(?:\s*code)?|(?:door|access|entry|gate|garage|alarm|security|lock|keypad)\s+code|passcode|setup\s+code)\s*(?:[=:]\s*)?\d{4,}\b/i;
 
   function roomsFrom(state) {
     return Array.isArray(state && state.rooms) ? state.rooms : [];
@@ -37,6 +44,19 @@
     return String(value == null ? '' : value).replace(/[\r\n\t]+/g, ' ').trim();
   }
 
+  function isCredentialLikeValue(value) {
+    const candidate = cleanLine(value);
+    if (!candidate) return false;
+    const labelled = candidate.match(CREDENTIAL_VALUE);
+    const safePlaceholder = labelled && /^(?:not|never|do\s+not|must\s+not|should\s+not|redacted|removed|omitted|blank|none|n\/a)\b/i.test(labelled[1]);
+    return Boolean((labelled && !safePlaceholder) || NUMERIC_CREDENTIAL_VALUE.test(candidate));
+  }
+
+  function safeLine(value) {
+    const candidate = cleanLine(value);
+    return isCredentialLikeValue(candidate) ? '' : candidate;
+  }
+
   function csvCell(value) {
     let text = cleanLine(value);
     if (/^[=+\-@]/.test(text)) text = `'${text}`;
@@ -47,13 +67,14 @@
     const rows = [];
     roomsFrom(state).forEach(room => {
       devicesFrom(room).forEach(device => {
-        const row = { room: cleanLine(room.name), status: deviceStatus(device) };
-        TECHNICAL_FIELDS.forEach(field => { row[field] = cleanLine(device[field]); });
+        const row = { room: safeLine(room.name), status: deviceStatus(device) };
+        TECHNICAL_FIELDS.forEach(field => { row[field] = safeLine(device[field]); });
         // Accept the concise editor field names while keeping a stable export schema.
-        row.serialNumber = cleanLine(device.serialNumber || device.serial);
-        row.ipAddress = cleanLine(device.ipAddress || device.ip);
-        row.installerNotes = cleanLine(device.installerNotes || device.notes);
-        row.checks = checksFrom(device).map(check => `${cleanLine(check.name)}: ${cleanLine(check.status)}`).join('; ');
+        row.serialNumber = safeLine(device.serialNumber || device.serial);
+        row.networkAddress = safeLine(device.networkAddress || device.ipAddress || device.ip);
+        row.installerNotes = safeLine(device.installerNotes || device.notes);
+        row.checks = checksFrom(device).map(check => ({ name: safeLine(check.name), status: safeLine(check.status) }))
+          .filter(check => check.name && check.status).map(check => `${check.name}: ${check.status}`).join('; ');
         rows.push(row);
       });
     });
@@ -61,8 +82,8 @@
   }
 
   function createInstallerCsv(state, options = {}) {
-    const headers = ['Room', 'Name', 'Type', 'Category', 'Brand', 'Model', 'Serial number', 'IP address', 'Status', 'Acceptance checks', 'Installer notes'];
-    const keys = ['room', 'name', 'type', 'category', 'brand', 'model', 'serialNumber', 'ipAddress', 'status', 'checks', 'installerNotes'];
+    const headers = ['Room', 'Name', 'Type', 'Category', 'Brand', 'Model', 'Serial number', 'Asset reference', 'Protocol', 'Network address', 'MAC address', 'Network / VLAN', 'Controller / switch', 'Port reference', 'Installation date', 'Installer / business', 'Circuit / board', 'Physical location', 'Warranty date', 'Firmware / version', 'Last tested', 'Status', 'Acceptance checks', 'Issues / actions', 'Maintenance notes', 'Homeowner notes', 'Installer notes'];
+    const keys = ['room', 'name', 'type', 'category', 'brand', 'model', 'serialNumber', 'assetReference', 'protocol', 'networkAddress', 'macAddress', 'networkLabel', 'controllerReference', 'portReference', 'installationDate', 'installerBusiness', 'circuitReference', 'physicalLocationNotes', 'warrantyDate', 'firmwareVersion', 'lastTestedDate', 'status', 'checks', 'issuesActions', 'maintenanceNotes', 'homeownerNotes', 'installerNotes'];
     const lines = [headers.map(csvCell).join(',')];
     installerRows(state).forEach(row => lines.push(keys.map(key => csvCell(row[key])).join(',')));
     lines.push('');
@@ -73,7 +94,7 @@
   function createInstallerJson(state, options = {}) {
     return JSON.stringify({
       schemaVersion: 1,
-      projectName: projectName(state),
+      projectName: safeLine(projectName(state)) || 'Domestic Intelligence handover',
       generatedAt: generatedAt(options),
       disclaimer: DISCLAIMER,
       devices: installerRows(state)
@@ -112,7 +133,7 @@
       ? 'Needs attention'
       : (!statuses.length || statuses.includes('Not tested') ? 'Not ready' : 'Ready');
     const lines = [
-      projectName(state),
+      safeLine(projectName(state)) || 'Domestic Intelligence handover',
       'Homeowner handover',
       `Generated: ${stamp.slice(0, 10)}`,
       `Overall readiness: ${overall}`,
@@ -121,14 +142,16 @@
       ''
     ];
     roomsFrom(state).forEach(room => {
-      lines.push(String(room.name || 'Room'));
+      lines.push(safeLine(room.name) || 'Room');
       const devices = devicesFrom(room);
       if (!devices.length) lines.push('  No installed devices recorded.');
       devices.forEach(device => {
-        const publicType = device.type || device.category || 'Device';
-        const publicBrandModel = [device.brand, device.model].filter(Boolean).join(' ');
-        lines.push(`  ${device.name || 'Unnamed device'} - ${publicType} - ${deviceStatus(device)}`);
+        const publicType = safeLine(device.type || device.category) || 'Device';
+        const publicBrandModel = [safeLine(device.brand), safeLine(device.model)].filter(Boolean).join(' ');
+        lines.push(`  ${safeLine(device.name) || 'Unnamed device'} - ${publicType} - ${deviceStatus(device)}`);
         if (publicBrandModel) lines.push(`    ${publicBrandModel}`);
+        const homeownerNotes = safeLine(device.homeownerNotes);
+        if (homeownerNotes) lines.push(`    Note: ${homeownerNotes}`);
       });
       lines.push('');
     });
@@ -214,6 +237,7 @@
   const api = Object.freeze({
     DISCLAIMER,
     TECHNICAL_FIELDS,
+    isCredentialLikeValue,
     csvCell,
     deviceStatus,
     installerRows,

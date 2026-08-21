@@ -1,0 +1,45 @@
+:where(.di-control) {
+  min-width: 44px;
+  min-height: 44px;
+  font: inherit;
+}
+
+:where(.di-button, .di-icon-button, .di-segmented__option, .di-toolbar > *) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--di-space-2, .5rem);
+  border: 1px solid var(--di-color-border, currentColor);
+  border-radius: var(--di-radius-control, .75rem);
+  padding: .625rem .875rem;
+}
+
+.di-icon-button { width: 44px; padding: 0; }
+.di-icon { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.di-field { display: grid; gap: .375rem; }
+.di-field__label, .di-fieldset > legend { font-weight: 700; }
+.di-field__control { width: 100%; }
+.di-field__hint { color: var(--di-color-text-muted, #5d6d67); }
+.di-field__error, .di-field__control[aria-invalid="true"] { color: var(--di-color-attention, #a33b4a); }
+.di-field__control[aria-invalid="true"] { border-color: currentColor; }
+.di-segmented { display: inline-flex; gap: .25rem; }
+.di-segmented__option[aria-checked="true"] { background: var(--di-color-primary, #6246c7); color: var(--di-color-on-primary, #fff); }
+.di-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; }
+.di-sheet, .di-dialog { background: var(--di-color-surface, #fff); color: var(--di-color-text, #17201d); }
+.di-dialog { position: fixed; inset: 0; z-index: 1500; overflow: auto; padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom)); }
+.di-dialog__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.di-status { min-height: 44px; display: flex; align-items: center; padding: .625rem .75rem; border-radius: .75rem; }
+.di-status--success { color: var(--di-color-success, #176844); }
+.di-status--warning { color: var(--di-color-warning, #76570e); }
+.di-status--danger { color: var(--di-color-attention, #a33b4a); }
+.di-status[aria-busy="true"]::before { content: ''; width: 1rem; height: 1rem; margin-right: .5rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
+.di-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; border: 0 !important; }
+
+:where(.di-control, .di-dialog, .di-toolbar):focus-visible {
+  outline: 3px solid var(--di-color-focus, #1ca6c8);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .di-status[aria-busy="true"]::before { animation: none; }
+}
