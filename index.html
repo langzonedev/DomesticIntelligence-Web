@@ -106,13 +106,13 @@
               <div class="inspector-heading"><div><p class="eyebrow">Device point</p><h3 id="pointHeading">Device</h3></div><button class="danger-text" id="removePoint" type="button">Remove</button></div>
               <form id="pointForm">
                 <label>Name <input name="name" required maxlength="60"></label>
-                <div class="two-fields"><label>Room <select name="room"></select></label><label>Category <select name="category"><option>Lighting</option><option>Blind</option><option>Sensor</option><option>Access</option><option>Climate</option><option>Other</option></select></label></div>
+                <div class="two-fields"><label>Room <select name="room"></select></label><label>Category <select name="category"><option>Lighting</option><option>Blind</option><option>Sensor</option><option>Access</option><option>Climate</option><option>CCTV</option><option>Appliance</option><option>Security</option><option>Networking</option><option>Audio / Video</option><option>Energy</option><option>EV charging</option><option>Smoke / CO</option><option>Water / Leak</option><option>Irrigation</option><option>Garage / Gate</option><option>Other</option></select></label></div>
                 <div class="two-fields"><label>Brand <input name="brand" maxlength="50"></label><label>Model <input name="model" maxlength="60"></label></div>
                 <label>Serial number <input name="serial" maxlength="80" autocomplete="off"></label>
                 <label>IP address <input name="ip" maxlength="45" inputmode="decimal" autocomplete="off"><small id="ipHelp">Optional. Installer export only.</small></label>
                 <label>Installer notes <textarea name="notes" rows="3" maxlength="400"></textarea><small>Do not enter passwords, credentials or Matter fabric keys.</small></label>
                 <fieldset><legend>Acceptance checks</legend><div id="checkEditor"></div></fieldset>
-                <button class="primary-action full" type="submit">Save device details</button>
+                <button class="primary-action full" type="submit">Save device details & return to plan</button>
               </form>
             </section>
 
@@ -136,12 +136,13 @@
       </section>
     </main>
 
-    <footer><span>Domestic Intelligence · v0.3 local prototype</span><span>No cloud upload · no electrical certification</span></footer>
+    <footer><span>Domestic Intelligence · v0.4 local prototype</span><span>No cloud upload · no electrical certification</span></footer>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="editor-core.js"></script>
   <script src="storage.js"></script>
   <script src="exporters.js"></script>
+  <script src="state-guard-v04.js"></script>
   <script src="mobile-v03.js"></script>
   <script src="app-v2.js"></script>
 </body>
