@@ -55,6 +55,16 @@
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
+  function syncMoreVisibility() {
+    const more = $('#mobileMoreView');
+    if (more) more.hidden = currentSection !== 'more';
+  }
+
+  function route(section, options) {
+    setSection(section, options);
+    syncMoreVisibility();
+  }
+
   function buildTopBar() {
     if ($('.mobile-top-appbar')) return;
     const bar = document.createElement('header');
@@ -73,7 +83,7 @@
     ].map(([key, label]) => `<button type="button" data-mobile-section="${key}" aria-label="${label}"><span class="mobile-nav-icon">${icons[key]}</span><span class="mobile-nav-label">${label}</span></button>`).join('');
     nav.addEventListener('click', event => {
       const button = event.target.closest('[data-mobile-section]');
-      if (button) setSection(button.dataset.mobileSection);
+      if (button) route(button.dataset.mobileSection);
     });
     document.body.append(nav);
   }
@@ -85,7 +95,7 @@
     card.innerHTML = '<p class="eyebrow">Property</p><h2 id="mobileHomeName">Home</h2><p class="mobile-property-address" id="mobileHomeAddress"></p><p class="mobile-property-meta" id="mobileHomeMeta"></p><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Floor plan</strong><small>View devices, walls and storeys</small></div><button type="button" class="primary-action" id="mobileOpenPlan">Open plan</button></div>';
     const main = $('#top');
     if (main) main.prepend(card);
-    card.querySelector('#mobileOpenPlan').addEventListener('click', () => setSection('plan'));
+    card.querySelector('#mobileOpenPlan').addEventListener('click', () => route('plan'));
   }
 
   async function refreshHomeCard() {
@@ -135,16 +145,6 @@
     const state = await getState();
     const input = $('#residenceAddress');
     if (input && state?.home?.address && document.activeElement !== input) input.value = state.home.address;
-  }
-
-  function syncMoreVisibility() {
-    const more = $('#mobileMoreView');
-    if (more) more.hidden = currentSection !== 'more';
-  }
-
-  function route(section, options) {
-    setSection(section, options);
-    syncMoreVisibility();
   }
 
   function attachOverlayHistory() {
