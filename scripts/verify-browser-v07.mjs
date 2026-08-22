@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-18')),
-    scripts:[...document.scripts].every(script=>script.src.includes('?v=07-18'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-19')),
+    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-19'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
