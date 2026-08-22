@@ -164,16 +164,21 @@
   }
 
   .mobile-device-summary[data-expanded="true"] {
+    display: block !important;
     top: max(8px, env(safe-area-inset-top)) !important;
     bottom: calc(76px + env(safe-area-inset-bottom)) !important;
     height: auto !important;
     max-height: none !important;
-    overflow-y: auto !important;
+    overflow-y: scroll !important;
     overflow-x: hidden !important;
-    overscroll-behavior: contain !important;
-    -webkit-overflow-scrolling: touch;
-    align-content: start !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
     padding-bottom: 18px !important;
+  }
+
+  .mobile-device-summary[data-expanded="true"] > *:not(.summary-grabber) {
+    touch-action: pan-y !important;
   }
 
   #mobileDeviceSummaryStatus {
@@ -187,6 +192,7 @@
     align-items: center !important;
     padding: 5px 10px !important;
     border-radius: 999px !important;
+    margin-block: 10px !important;
   }
 
   .mobile-device-summary .summary-grabber {
@@ -203,6 +209,7 @@
     font-weight: 800 !important;
     letter-spacing: .02em !important;
     flex: none !important;
+    touch-action: none !important;
   }
 
   .mobile-device-summary .summary-grabber::before {
@@ -221,16 +228,19 @@
   .mobile-device-summary[data-expanded="true"] .mobile-device-quick-record {
     display: grid !important;
     gap: 10px !important;
-    min-height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
+    overscroll-behavior: auto !important;
+    touch-action: pan-y !important;
     align-content: start !important;
     padding: 0 2px 8px !important;
   }
 
   .mobile-device-summary[data-expanded="true"] #openDeviceRecord {
     position: static !important;
-    margin-top: 2px !important;
+    margin-top: 12px !important;
+    margin-bottom: 6px !important;
     flex: none !important;
   }
 }
