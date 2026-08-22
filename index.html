@@ -7,17 +7,17 @@
   <meta name="description" content="Domestic Intelligence — a local-first visual smart-home commissioning and handover prototype.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Domestic Intelligence</title>
-  <link rel="manifest" href="manifest.webmanifest?v=07-16">
+  <link rel="manifest" href="manifest.webmanifest?v=07-18">
   <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="theme.css?v=07-16">
-  <link rel="stylesheet" href="theme-v07.css?v=07-16">
-  <link rel="stylesheet" href="v2.css?v=07-16">
-  <link rel="stylesheet" href="theme-bridge.css?v=07-16">
-  <link rel="stylesheet" href="mobile-v03.css?v=07-16">
-  <link rel="stylesheet" href="mobile-v06.css?v=07-16">
-  <link rel="stylesheet" href="ui-kit.css?v=07-16">
-  <link rel="stylesheet" href="atlas-v07.css?v=07-16">
+  <link rel="stylesheet" href="theme.css?v=07-18">
+  <link rel="stylesheet" href="theme-v07.css?v=07-18">
+  <link rel="stylesheet" href="v2.css?v=07-18">
+  <link rel="stylesheet" href="theme-bridge.css?v=07-18">
+  <link rel="stylesheet" href="mobile-v03.css?v=07-18">
+  <link rel="stylesheet" href="mobile-v06.css?v=07-18">
+  <link rel="stylesheet" href="ui-kit.css?v=07-18">
+  <link rel="stylesheet" href="atlas-v07.css?v=07-18">
 </head>
 <body>
   <div class="app-shell">
@@ -48,32 +48,34 @@
           <div class="readiness-card" id="homeReadiness" aria-live="polite"></div>
         </div>
 
-        <div class="editor-mode-bar">
-        <div class="segmented" role="group" aria-label="Map interaction mode">
-            <button type="button" data-editor-mode="view" class="active">View</button>
-            <button type="button" data-editor-mode="edit">Edit map</button>
+        <div class="workspace-controls">
+          <div class="editor-mode-bar">
+            <div class="segmented" role="group" aria-label="Map interaction mode">
+              <button type="button" data-editor-mode="view" class="active">View</button>
+              <button type="button" data-editor-mode="edit">Edit map</button>
+            </div>
+            <p id="modeHint" class="mode-hint">View mode prevents accidental map changes.</p>
+            <div class="history-actions">
+              <button id="undoButton" type="button" class="quiet-action" disabled>Undo</button>
+              <button id="redoButton" type="button" class="quiet-action" disabled>Redo</button>
+            </div>
           </div>
-          <p id="modeHint" class="mode-hint">View mode prevents accidental map changes.</p>
-          <div class="history-actions">
-            <button id="undoButton" type="button" class="quiet-action" disabled>Undo</button>
-            <button id="redoButton" type="button" class="quiet-action" disabled>Redo</button>
-          </div>
-        </div>
 
-        <div class="atlas-commandbar" role="toolbar" aria-label="Living Atlas viewport controls">
-          <div class="atlas-command-group" aria-label="Map tools">
-            <button type="button" class="tool-button" data-atlas-tool="pan" aria-pressed="false"><span aria-hidden="true">✥</span> Pan</button>
-            <button type="button" class="tool-button" data-atlas-tool="select" aria-pressed="true"><span aria-hidden="true">⌁</span> Select</button>
-            <button type="button" class="tool-button atlas-layers-trigger" id="atlasLayersButton" aria-haspopup="dialog" aria-controls="atlasLayersDialog"><span aria-hidden="true">▱</span> Layers</button>
+          <div class="atlas-commandbar" role="toolbar" aria-label="Living Atlas viewport controls">
+            <div class="atlas-command-group" aria-label="Map tools">
+              <button type="button" class="tool-button" data-atlas-tool="pan" aria-pressed="false"><span aria-hidden="true">✥</span> Pan</button>
+              <button type="button" class="tool-button" data-atlas-tool="select" aria-pressed="true"><span aria-hidden="true">⌁</span> Select</button>
+              <button type="button" class="tool-button atlas-layers-trigger" id="atlasLayersButton" aria-haspopup="dialog" aria-controls="atlasLayersDialog"><span aria-hidden="true">▱</span> Layers</button>
+            </div>
+            <div class="atlas-command-group" aria-label="View controls">
+              <button type="button" class="icon-action" id="zoomOut" aria-label="Zoom out" title="Zoom out">−</button>
+              <output id="zoomLevel" aria-live="polite">100%</output>
+              <button type="button" class="icon-action" id="zoomIn" aria-label="Zoom in" title="Zoom in">+</button>
+              <button type="button" class="quiet-action" id="fitStorey">Fit storey</button>
+              <button type="button" class="quiet-action" id="resetView">Reset view</button>
+            </div>
+            <span class="storey-context" id="storeyContext">Ground floor · All active layers</span>
           </div>
-          <div class="atlas-command-group" aria-label="View controls">
-            <button type="button" class="icon-action" id="zoomOut" aria-label="Zoom out" title="Zoom out">−</button>
-            <output id="zoomLevel" aria-live="polite">100%</output>
-            <button type="button" class="icon-action" id="zoomIn" aria-label="Zoom in" title="Zoom in">+</button>
-            <button type="button" class="quiet-action" id="fitStorey">Fit storey</button>
-            <button type="button" class="quiet-action" id="resetView">Reset view</button>
-          </div>
-          <span class="storey-context" id="storeyContext">Ground floor · All active layers</span>
         </div>
 
         <div class="editor-grid">
@@ -139,8 +141,9 @@
 
             <section id="pointInspector" class="inspector-section" hidden>
               <div class="inspector-heading"><div><p class="eyebrow">Device point</p><h3 id="pointHeading">Device</h3></div><button class="danger-text" id="removePoint" type="button">Remove</button></div>
+              <div class="device-snapshot" aria-live="polite"><span id="pointSnapshotLocation">Location</span><strong id="pointSnapshotChecks">Not tested</strong></div>
               <form id="pointForm">
-                <details open><summary>Identity</summary>
+                <details><summary>Identity</summary>
                   <label>Name <input name="name" required maxlength="60"></label>
                   <div class="two-fields"><label>Room <select name="room"></select></label><label>Category <select name="category"><option>Lighting</option><option>Blind</option><option>Sensor</option><option>Access</option><option>Climate</option><option>CCTV</option><option>Appliance</option><option>Security</option><option>Networking</option><option>Audio / Video</option><option>Energy</option><option>EV charging</option><option>Smoke / CO</option><option>Water / Leak</option><option>Irrigation</option><option>Garage / Gate</option><option>Other</option></select></label></div>
                   <div class="two-fields"><label>Brand <input name="brand" maxlength="60"></label><label>Model <input name="model" maxlength="80"></label></div>
@@ -198,6 +201,7 @@
     <div class="inspector-heading"><div><p class="eyebrow">Device on this plan</p><h2 id="mobileDeviceSummaryTitle">Device</h2></div><button id="closeDeviceSummary" class="icon-action" type="button" aria-label="Close device summary">×</button></div>
     <p id="mobileDeviceSummaryMeta" class="muted"></p>
     <div id="mobileDeviceSummaryStatus" class="status-chip"></div>
+    <p id="mobileDeviceSummaryChecks" class="summary-checks"></p>
     <button id="openDeviceRecord" class="primary-action full" type="button">Open full device record</button>
   </section>
   <dialog id="atlasLayersDialog" class="atlas-layers-dialog" aria-labelledby="atlasLayersTitle">
@@ -210,16 +214,16 @@
     <button id="atlasLayersShowAll" type="button" class="quiet-action full">Show all and unlock</button>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="editor-core.js?v=07-16"></script>
-  <script src="property-model.js?v=07-16"></script>
-  <script src="storage.js?v=07-16"></script>
-  <script src="exporters.js?v=07-16"></script>
-  <script src="ui-icons.js?v=07-16"></script>
-  <script src="ui-kit.js?v=07-16"></script>
-  <script src="state-guard-v04.js?v=07-16"></script>
-  <script src="mobile-v03.js?v=07-16"></script>
-  <script src="app-v2.js?v=07-16"></script>
-  <script src="mobile-v05.js?v=07-16"></script>
-  <script src="atlas-v07.js?v=07-16"></script>
+  <script src="editor-core.js?v=07-18"></script>
+  <script src="property-model.js?v=07-18"></script>
+  <script src="storage.js?v=07-18"></script>
+  <script src="exporters.js?v=07-18"></script>
+  <script src="ui-icons.js?v=07-18"></script>
+  <script src="ui-kit.js?v=07-18"></script>
+  <script src="state-guard-v04.js?v=07-18"></script>
+  <script src="mobile-v03.js?v=07-18"></script>
+  <script src="app-v2.js?v=07-18"></script>
+  <script src="mobile-v05.js?v=07-18"></script>
+  <script src="atlas-v07.js?v=07-18"></script>
 </body>
 </html>

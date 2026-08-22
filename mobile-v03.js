@@ -478,7 +478,7 @@
     bar.id = 'mobileEditSessionBar';
     bar.className = 'mobile-edit-session-bar';
     bar.hidden = true;
-    bar.innerHTML = '<div><strong>Edit floor plan</strong><small>Changes are not final until Save.</small></div><span class="mobile-edit-actions"><button id="mobileReferenceButton" type="button" class="quiet-action">Reference plan</button><button id="mobileEditCancel" type="button" class="quiet-action">Cancel</button><button id="mobileEditSave" type="button" class="primary-action">Save</button></span>';
+    bar.innerHTML = '<div class="mobile-edit-copy"><strong>Edit plan</strong><small>Save when finished.</small></div><span class="mobile-edit-actions"><button id="mobileReferenceButton" type="button" class="quiet-action">Reference</button><button id="mobileEditCancel" type="button" class="quiet-action">Cancel</button><button id="mobileEditSave" type="button" class="primary-action">Save</button></span>';
     mapCard.prepend(bar);
 
     const sheet = document.createElement('section');
@@ -527,16 +527,29 @@
   function ensurePointCloseButton() {
     const inspector = document.querySelector('.inspector-card');
     if (!inspector || document.querySelector('#mobilePointClose')) return;
+    const nav = document.createElement('div');
+    nav.className = 'mobile-point-nav';
     const button = document.createElement('button');
     button.id = 'mobilePointClose';
     button.type = 'button';
     button.className = 'mobile-point-close quiet-action';
-    button.textContent = '← Floor plan';
+    button.textContent = '← Plan';
+    const title = document.createElement('strong');
+    title.id = 'mobilePointNavTitle';
+    title.className = 'mobile-point-nav-title';
+    title.textContent = 'Device';
+    const save = document.createElement('button');
+    save.id = 'mobilePointSave';
+    save.type = 'submit';
+    save.className = 'mobile-point-save primary-action';
+    save.setAttribute('form', 'pointForm');
+    save.textContent = 'Save';
     button.addEventListener('click', () => {
       document.body.classList.remove('mobile-point-detail');
       document.querySelector('#mapStage')?.focus();
     });
-    inspector.prepend(button);
+    nav.append(button, title, save);
+    inspector.prepend(nav);
   }
 
   function ensureDeviceSaveReturn() {
@@ -590,6 +603,8 @@
     addButton.id = 'addFloorButton';
     addButton.type = 'button';
     addButton.className = 'quiet-action';
+    addButton.setAttribute('aria-label', 'Add storey');
+    addButton.title = 'Add storey';
     addButton.textContent = '+ Add storey';
     heading.append(title, addButton);
     const group = document.createElement('div');

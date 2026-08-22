@@ -6,6 +6,7 @@
 .atlas-commandbar output{min-width:52px;text-align:center;color:var(--di-muted);font-variant-numeric:tabular-nums;font-weight:750}
 .storey-context{min-width:0;margin-inline-start:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--di-muted);font-size:.83rem;font-weight:700}
 .atlas-commandbar [data-atlas-tool][aria-pressed="true"]{color:var(--di-on-accent);background:var(--di-accent);border-color:var(--di-accent)}
+.workspace-controls{display:block;min-width:0}
 
 .editor-grid{display:grid;grid-template-columns:minmax(220px,240px) minmax(0,1fr) minmax(340px,380px);gap:12px;align-items:stretch;min-height:0}
 .tools-rail,.map-card,.inspector-card{min-width:0;min-height:0;border:1px solid var(--di-border);border-radius:12px;background:var(--di-surface);box-shadow:0 10px 28px rgb(19 7 47 / 8%)}
@@ -38,6 +39,9 @@
 .wall-metrics{margin:8px 0 12px;padding:10px;border-radius:8px;background:var(--di-subtle);font-variant-numeric:tabular-nums;font-weight:800}
 
 .inspector-card{overflow:auto;max-height:calc(100vh - 190px);padding:12px}
+.device-snapshot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 4px;padding:9px 10px;border-radius:10px;background:var(--di-subtle);color:var(--di-muted);font-size:.78rem}
+.device-snapshot strong{color:var(--di-text);text-align:right}
+.danger-text:disabled{display:none}
 .inspector-section>details,#pointForm>details{border-top:1px solid var(--di-border);padding-top:4px}
 #pointForm>details:first-child{border-top:0}
 #pointForm details>summary{list-style:none;position:relative;padding-right:22px}
@@ -57,6 +61,7 @@
 .atlas-sheet-layer-row:has(input:focus-visible),.atlas-sheet-layer-row:has(button:focus-visible){outline:3px solid var(--di-focus);outline-offset:2px}
 
 @media (min-width:1101px){
+  .app-shell{width:min(1760px,100%);padding-inline:clamp(16px,1.5vw,28px)}
   body:has(#commissionView:not([hidden])){overflow:hidden}
   body:has(#commissionView:not([hidden])) .app-shell{position:relative;display:flex;flex-direction:column;height:100dvh;padding-top:6px;padding-bottom:6px;overflow:hidden}
   body:has(#commissionView:not([hidden])) main{display:flex;flex:1;min-height:0;flex-direction:column;overflow:hidden}
@@ -64,15 +69,18 @@
   .prototype-note{display:none}
   .mode-tabs{position:absolute;z-index:3;top:8px;left:50%;transform:translateX(-50%);margin:0}
   #commissionView:not([hidden]){display:flex!important;flex:1;min-height:0;flex-direction:column;overflow:hidden}
-  .project-heading{min-height:52px;margin:4px 0;align-items:center}
+  .project-heading{min-height:48px;margin:2px 0;align-items:center}
   .project-heading>div:first-child{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
   .project-heading>div:first-child>.eyebrow,.project-heading>div:first-child>#projectName,.project-heading>div:first-child>.muted{display:none}
   .project-address-display{margin:0!important;max-width:38ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .floor-controls{display:flex;align-items:center;gap:8px;margin:0!important;max-width:none!important}
   .floor-control-heading{margin:0!important}.floor-control-heading>strong{display:none}
   .floor-choice-group{flex-wrap:nowrap!important}
-  .editor-mode-bar{margin-bottom:6px;padding-block:6px}
-  .atlas-commandbar{margin-bottom:8px;padding-block:5px}
+  .workspace-controls{display:grid;grid-template-columns:minmax(350px,.68fr) minmax(0,1.32fr);gap:8px;margin-bottom:8px}
+  .editor-mode-bar{min-width:0;margin:0;padding:5px 7px;flex-wrap:nowrap}
+  .editor-mode-bar .mode-hint{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .atlas-commandbar{margin:0;padding-block:5px}
+  .editor-grid{grid-template-columns:minmax(190px,220px) minmax(0,1fr) minmax(330px,380px)}
   .editor-grid{flex:1 1 0;height:auto;min-height:0;overflow:hidden}
   .tools-rail,.map-card,.inspector-card{height:100%;max-height:none}
   .map-card{position:relative;padding:0}
@@ -90,35 +98,86 @@
 }
 
 @media (min-width:761px) and (max-width:1100px){
+  .app-shell{position:relative;padding-top:6px}
+  .prototype-note{display:none}
+  .topbar{padding-block:4px 8px}
+  .mode-tabs{position:absolute;z-index:3;top:8px;left:50%;transform:translateX(-50%);margin:0}
+  .project-heading{min-height:64px;margin:6px 0 8px;align-items:center}
+  .project-heading>div:first-child{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .project-heading>div:first-child>.eyebrow,.project-heading>div:first-child>#projectName,.project-heading>div:first-child>.muted{display:none}
+  .project-address-display{margin:0!important;max-width:30ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.9rem!important}
+  .floor-controls{display:flex;align-items:center;gap:7px;margin:0!important;max-width:none!important}
+  .floor-control-heading{margin:0!important}.floor-control-heading>strong{display:none}
+  .floor-choice-group{flex-wrap:nowrap!important}
+  .readiness-card{min-width:190px;margin:0}
+  .workspace-controls{margin-bottom:8px}
+  .editor-mode-bar{margin-bottom:8px}
   .tools-rail,.map-card{height:clamp(32rem,calc(100dvh - 12rem),52rem)}
   .map-stage{flex:1 1 0;min-height:0;width:auto;max-width:100%;max-height:100%;aspect-ratio:2/3}
   .inspector-card{max-height:min(70dvh,48rem)}
 }
 
+@media (min-width:761px) and (max-width:900px){
+  .topbar .brand>span{display:none}
+}
+
 @media (max-width:760px){
+  body.mobile-section-plan{overflow:hidden}
+  body.mobile-section-plan .app-shell{display:flex;height:calc(100dvh - 128px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:0;overflow:hidden;flex-direction:column}
+  body.mobile-section-plan .app-shell>main{display:flex;flex:1 1 0;min-height:0;flex-direction:column}
+  body.mobile-section-plan #commissionView{display:flex!important;height:100%;min-height:0;flex-direction:column;overflow:hidden}
+  body.mobile-section-plan .workspace-controls{flex:0 0 auto}
+  body.mobile-section-plan .editor-grid{flex:1 1 0;min-height:0;margin:0!important;overflow:hidden}
+  body.mobile-section-plan .map-card{position:relative;height:100%;min-height:0}
+  body.mobile-section-plan .map-card>.section-heading{position:absolute;z-index:3;inset:8px 10px auto;padding:6px 8px;border-radius:10px;background:color-mix(in srgb,var(--di-surface) 88%,transparent);pointer-events:none}
+  body.mobile-section-plan .map-card>.section-heading .status-chip{display:none}
+  body.mobile-section-plan .map-stage{height:100%;min-height:0!important}
+  body.mobile-section-plan .map-help{display:none}
+  body.mobile-section-plan .floor-controls.mobile-plan-floors{display:flex!important;flex:0 0 auto;align-items:center;gap:6px;margin:4px 10px!important;overflow:hidden}
+  body.mobile-section-plan .floor-control-heading{display:contents}
+  body.mobile-section-plan .floor-control-heading>strong{display:none}
+  body.mobile-section-plan .floor-choice-group{order:1;flex:1 1 auto;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  body.mobile-section-plan #addFloorButton{order:2;flex:0 0 44px;width:44px;min-height:44px;padding:0;font-size:0}
+  body.mobile-section-plan #addFloorButton::after{content:'+';font-size:1.35rem;line-height:1}
+  body.mobile-section-plan .floor-choice-group{flex-wrap:nowrap}
+  body.mobile-section-plan.mobile-floor-edit .mobile-plan-floors,
+  body.mobile-section-plan.mobile-floor-edit .workspace-controls{display:none!important}
+  body.mobile-section-plan.mobile-floor-edit .editor-grid{display:block!important;height:auto;margin:0!important}
+  body.mobile-section-plan.mobile-floor-edit .map-card{position:fixed!important;z-index:1000;inset:0!important;width:100%;height:100dvh!important;padding:env(safe-area-inset-top) 10px env(safe-area-inset-bottom)!important}
+  body.mobile-section-plan.mobile-floor-edit .map-card>.section-heading{display:none!important}
+  body.mobile-section-plan.mobile-floor-edit .map-help{display:block}
   body.mobile-floor-edit:not(.atlas-short-landscape) .atlas-commandbar{display:none!important}
-  .atlas-commandbar{margin:0;border-radius:0;border-inline:0;padding:6px 10px;overflow:visible;flex-wrap:wrap;scrollbar-width:none}
+  .editor-mode-bar{min-height:54px;margin:0!important;padding:5px 10px;border-radius:0;border-inline:0;flex-wrap:nowrap}
+  .editor-mode-bar .segmented{flex:1}
+  .editor-mode-bar .segmented button{min-height:44px;padding-block:6px}
+  .editor-mode-bar .mode-hint,.editor-mode-bar .history-actions{display:none}
+  .atlas-commandbar{min-height:54px;margin:0;border-radius:0;border-inline:0;padding:5px 10px;overflow:hidden;flex-wrap:nowrap;gap:6px;scrollbar-width:none}
   .atlas-commandbar::-webkit-scrollbar{display:none}
   .storey-context{display:none}
-  .atlas-commandbar .atlas-command-group:last-of-type{display:grid;grid-template-columns:44px 48px 44px minmax(68px,1fr) minmax(68px,1fr);gap:4px;width:100%}
-  .atlas-commandbar .atlas-command-group:last-of-type .quiet-action{padding-inline:4px;font-size:.72rem}
+  .atlas-commandbar .atlas-command-group:first-child{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1 1 auto;gap:4px}
+  .atlas-commandbar .atlas-command-group:last-of-type{display:flex;width:auto;gap:4px}
+  .atlas-commandbar #zoomOut,.atlas-commandbar #zoomLevel,.atlas-commandbar #zoomIn,.atlas-commandbar #resetView{display:none}
+  .atlas-commandbar #fitStorey{min-width:66px;padding-inline:8px;font-size:.76rem}
+  .atlas-commandbar [data-atlas-tool]{padding-inline:7px;font-size:.76rem}
   .editor-grid{display:block}
   .mobile-section-plan .editor-grid{grid-template-columns:minmax(0,1fr)!important}
   .tools-rail{display:none}
   .map-card{border:0;border-radius:0;box-shadow:none;padding:0}
-  .map-stage{width:100%!important;max-width:none!important;aspect-ratio:auto!important;min-height:calc(100dvh - 286px);border-radius:0}
+  .map-stage{width:100%!important;max-width:none!important;aspect-ratio:auto!important;min-height:calc(100dvh - 238px);border-radius:0}
   .inspector-card{max-height:none;border-radius:16px 16px 0 0}
   body:not(.mobile-point-detail) .inspector-card{display:none}
-  .mobile-device-summary:not([hidden]){display:grid;gap:12px;position:fixed;z-index:1250;left:8px;right:8px;bottom:calc(76px + env(safe-area-inset-bottom));padding:8px 16px 16px;border:1px solid var(--di-border);border-radius:16px;background:var(--di-surface);box-shadow:0 24px 64px rgb(5 3 12 / 38%)}
-  .summary-grabber{width:44px;height:4px;margin:0 auto 2px;border-radius:4px;background:var(--di-border-strong)}
+  .mobile-device-summary:not([hidden]){display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 10px;position:fixed;z-index:1250;left:8px;right:8px;bottom:calc(76px + env(safe-area-inset-bottom));padding:4px 14px 14px;border:1px solid var(--di-border);border-radius:18px;background:var(--di-surface);box-shadow:0 24px 64px rgb(5 3 12 / 38%);touch-action:none}
+  .mobile-device-summary .summary-grabber,.mobile-device-summary .inspector-heading,.mobile-device-summary #mobileDeviceSummaryMeta,.mobile-device-summary #openDeviceRecord{grid-column:1/-1}
+  .summary-grabber{position:relative;width:100%;height:18px;margin:0 auto}
+  .summary-grabber::after{content:'';position:absolute;top:7px;left:50%;width:44px;height:4px;transform:translateX(-50%);border-radius:4px;background:var(--di-border-strong)}
+  .summary-checks{align-self:center;margin:0;color:var(--di-muted);font-size:.78rem;text-align:right}
   .atlas-commandbar .quiet-action{white-space:nowrap}
   .atlas-layers-dialog{width:100%;max-width:none;max-height:min(78dvh,44rem);margin:auto 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));border-radius:16px 16px 0 0}
 }
 
 @media (max-width:430px){
   .atlas-commandbar{gap:8px}
-  .atlas-commandbar [data-atlas-tool] span+*{display:none}
-  .map-stage{min-height:calc(100dvh - 262px)}
+  .map-stage{min-height:calc(100dvh - 220px)}
 }
 
 /* A rotated phone stays a compact Plan workspace even when its CSS width exceeds 760px. */
@@ -154,7 +213,7 @@
   body.atlas-short-landscape .map-card>.section-heading,
   body.atlas-short-landscape .map-help{display:none}
   body.atlas-short-landscape .map-stage{flex:1 1 0;min-height:0;height:100%;width:auto;max-width:100%;max-height:100%;margin:auto;aspect-ratio:2/3;border-radius:8px}
-  body.atlas-short-landscape .mobile-bottom-nav{display:grid;min-height:54px;padding:2px 8px;grid-template-columns:repeat(4,1fr)}
+  body.atlas-short-landscape .mobile-bottom-nav{display:grid;position:fixed;z-index:1300;right:0;bottom:0;left:0;min-height:54px;padding:2px 8px;grid-template-columns:repeat(4,1fr);background:color-mix(in srgb,var(--di-surface) 96%,transparent);border-top:1px solid var(--di-border);backdrop-filter:blur(14px)}
   body.atlas-short-landscape .mobile-bottom-nav button{min-height:50px}
   body.atlas-short-landscape .mobile-bottom-nav .mobile-nav-label{display:none}
   body.atlas-short-landscape .atlas-layers-dialog{width:min(34rem,calc(100% - 16px));max-height:calc(100dvh - 16px);margin:auto;padding:10px;border-radius:12px}

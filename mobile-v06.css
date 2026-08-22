@@ -54,8 +54,31 @@
   .floor-choice{min-height:44px}
   .mobile-point-detail .inspector-card[role="dialog"]{overscroll-behavior:contain}
   .mobile-point-detail .inspector-card[role="dialog"]:focus{outline:none}
+  .mobile-point-detail .inspector-card{scroll-padding-top:66px!important;padding-top:0!important}
+  .mobile-point-nav{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;position:sticky;z-index:5;top:0;min-height:60px;margin:0 -16px 8px;padding:8px 12px;border-bottom:1px solid var(--di-border,var(--border,#36554c));background:color-mix(in srgb,var(--di-surface,var(--surface,#fff)) 94%,transparent);backdrop-filter:blur(12px)}
+  .mobile-point-nav-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:.88rem}
+  .mobile-point-close,.mobile-point-save{display:inline-flex!important;align-items:center;justify-content:center;min-width:64px;min-height:44px;padding:7px 10px}
+  .mobile-point-detail #pointInspector>.inspector-heading{align-items:center;margin-bottom:6px}
+  .mobile-point-detail .device-snapshot{margin-block:6px 10px}
+  .mobile-point-detail #pointForm{display:flex;flex-direction:column}
+  .mobile-point-detail #pointForm>details:nth-of-type(4){order:1}
+  .mobile-point-detail #pointForm>details:nth-of-type(1){order:2}
+  .mobile-point-detail #pointForm>details:nth-of-type(2){order:3}
+  .mobile-point-detail #pointForm>details:nth-of-type(3){order:4}
+  .mobile-point-detail #pointForm>button[type="submit"]{order:5}
   .check-editor-row{grid-template-columns:1fr!important}
+
+  .mobile-floor-edit .mobile-edit-session-bar{display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 0 8px}
+  .mobile-edit-session-bar small{display:none!important}
+  .mobile-edit-actions{display:grid!important;grid-template-columns:repeat(3,auto);gap:5px!important}
+  .mobile-edit-actions button{min-height:44px;padding-inline:9px}
+  .mobile-floor-edit .edit-toolbar{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;width:100%;margin:0;padding:0 0 7px;overflow:visible!important;scrollbar-width:none}
+  .mobile-floor-edit .edit-toolbar .tool-button{min-width:0;min-height:50px;padding:5px 3px;font-size:.72rem;line-height:1.15;white-space:normal}
+  .mobile-floor-edit .edit-toolbar .grid-control{display:none!important}
+  .mobile-floor-edit .map-stage{width:min(100%,calc((100dvh - 132px)*2/3))!important;max-height:calc(100dvh - 132px)!important}
 }
+
+.mobile-point-nav{display:none}
 
 .floor-choice,
 .check-editor-row .inline-choice{min-height:44px}

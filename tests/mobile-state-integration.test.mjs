@@ -96,7 +96,7 @@ test('mobile legacy migration chooses the metadata owner rather than the active 
 });
 
 test('beginEditSession resolves plans through the metadata-aware storage wrapper', () => {
-  const beginSession = mobileSource.match(/async function beginEditSession\(\) \{[\s\S]*?return editSession;\n  \}/)?.[0] || '';
+  const beginSession = mobileSource.match(/async function beginEditSession\(\) \{[\s\S]*?return editSession;\r?\n  \}/)?.[0] || '';
   assert.match(beginSession, /await enhancedStore\.loadFloorPlan\(\)/);
   assert.doesNotMatch(beginSession, /originalStore\.loadFloorPlan/);
 });

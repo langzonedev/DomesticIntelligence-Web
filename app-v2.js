@@ -317,6 +317,14 @@
     if (wall) el.wallName.textContent = `Wall ${current.map.walls.indexOf(wall) + 1}`;
     if (point) {
       el.pointHeading.textContent = point.name;
+      const readiness = Core.deriveDeviceReadiness(point);
+      const passedChecks = point.checks.filter(check => check.status === 'pass').length;
+      const navTitle = $('#mobilePointNavTitle');
+      if (navTitle) navTitle.textContent = point.name;
+      const snapshotLocation = $('#pointSnapshotLocation');
+      const snapshotChecks = $('#pointSnapshotChecks');
+      if (snapshotLocation) snapshotLocation.textContent = `${current.rooms.find(room => room.id === point.roomId)?.name || 'Unassigned room'} · ${point.category || 'Device'}`;
+      if (snapshotChecks) snapshotChecks.textContent = `${labelStatus(readiness)} · ${passedChecks}/${point.checks.length} checks`;
       const form = el.pointForm.elements;
       form.name.value = point.name;
       form.room.innerHTML = current.rooms.map(room => `<option value="${escapeHtml(room.id)}">${escapeHtml(room.name)}</option>`).join('');

@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-16')),
-    scripts:[...document.scripts].every(script=>script.src.includes('?v=07-16'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-18')),
+    scripts:[...document.scripts].every(script=>script.src.includes('?v=07-18'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
@@ -88,7 +88,7 @@ try {
       });
       const map = document.querySelector('#mapStage').getBoundingClientRect();
       const editor = document.querySelector('.editor-grid').getBoundingClientRect();
-      return { fatal:Boolean(document.querySelector('.fatal')), innerWidth, innerHeight, scrollWidth:document.documentElement.scrollWidth, map:{width:map.width,height:map.height}, editor:{top:editor.top,bottom:editor.bottom,height:editor.height}, controls, bodyClass:document.body.className };
+      return { fatal:Boolean(document.querySelector('.fatal')), innerWidth, innerHeight, scrollWidth:document.documentElement.scrollWidth, map:{top:map.top,width:map.width,height:map.height}, editor:{top:editor.top,bottom:editor.bottom,height:editor.height}, controls, bodyClass:document.body.className };
     });
     const undersized = result.controls.filter(control => control.width < 43.5 || control.height < 43.5);
     const clipped = result.controls.filter(control => control.left < -0.5 || control.right > result.innerWidth + .5);
@@ -98,6 +98,9 @@ try {
     assert(!clipped.length, `${width}x${height}: clipped controls ${clipped.slice(0,4).map(item=>item.label).join(', ')}`);
     assert(result.map.width >= Math.min(260, width - 60) && result.map.height >= 250, `${width}x${height}: map too small ${Math.round(result.map.width)}x${Math.round(result.map.height)}`);
     if (width >= 1101) assert(result.editor.bottom <= result.innerHeight + 1, `${width}x${height}: desktop editor extends below viewport (${Math.round(result.editor.bottom)}/${result.innerHeight})`);
+    if (width === 1920) assert(result.map.height >= 820, `Desktop atlas did not reclaim the viewport (${Math.round(result.map.height)}px high)`);
+    if (width === 390) assert(result.map.top <= 240, `Phone Plan chrome displaced the atlas below ${Math.round(result.map.top)}px`);
+    if (width === 768) assert(result.map.top <= 420, `Tablet chrome displaced the atlas below ${Math.round(result.map.top)}px`);
     if (width === 844 && height === 390) assert(result.bodyClass.includes('atlas-short-landscape') && result.map.height >= height - 1, 'Phone landscape did not retain the full-height atlas shell');
     evidence.push({ width,height,overflow:result.scrollWidth-result.innerWidth,map:`${Math.round(result.map.width)}x${Math.round(result.map.height)}`,controls:result.controls.length,minTarget:Math.round(Math.min(...result.controls.map(item=>Math.min(item.width,item.height)))) });
   }
@@ -192,10 +195,13 @@ try {
   await beginDraftMove(); await transactionPage.locator('#mapStage').dispatchEvent('wheel',{deltaY:-160,clientX:190,clientY:420,bubbles:true,cancelable:true}); await transactionPage.waitForTimeout(140); await transactionPage.locator('#mobileEditCancel').click(); await transactionPage.waitForTimeout(250);
   assert(await pointSnapshot() === originalPoint,'Mobile Cancel did not restore the pre-edit transaction');
   assert(await transactionPage.evaluate(()=>JSON.stringify(window.DIAppBridge.getState().map.viewport)) === originalViewport,'Mobile Cancel did not restore the pre-edit viewport');
-  const floorCountBeforeGuard = await transactionPage.evaluate(()=>window.DIAppBridge.getState().home.floors.length); await beginDraftMove(); await transactionPage.waitForTimeout(260); await transactionPage.locator(`#floorControls [data-floor-id="${secondFloorId}"]`).click({force:true}); await transactionPage.locator('#addFloorButton').click({force:true}); await transactionPage.waitForTimeout(100);
+  const floorCountBeforeGuard = await transactionPage.evaluate(()=>window.DIAppBridge.getState().home.floors.length); await beginDraftMove(); await transactionPage.waitForTimeout(260); await transactionPage.locator(`#floorControls [data-floor-id="${secondFloorId}"]`).dispatchEvent('click'); await transactionPage.locator('#addFloorButton').dispatchEvent('click'); await transactionPage.waitForTimeout(100);
   assert(await transactionPage.locator('body').evaluate(body=>body.classList.contains('mobile-floor-edit')) && await transactionPage.evaluate(expected=>window.DIAppBridge.getState().home.activeFloorId === expected,groundFloorId),'Storey switch escaped the active mobile edit transaction');
   assert(await transactionPage.evaluate(expected=>window.DIAppBridge.getState().home.floors.length === expected,floorCountBeforeGuard),'Add storey escaped the active mobile edit transaction'); await transactionPage.locator('#mobileEditCancel').click(); await transactionPage.waitForTimeout(250); assert(await pointSnapshot() === originalPoint,'Guarded storey navigation persisted a cancelled draft');
-  await beginDraftMove(); const savedPoint = await pointSnapshot(); const saveViewportBefore = await transactionPage.evaluate(()=>window.DIAppBridge.getState().map.viewport.zoom); await transactionPage.locator('#mapStage').dispatchEvent('wheel',{deltaY:-160,clientX:190,clientY:420,bubbles:true,cancelable:true}); const savedZoomLabel = await transactionPage.locator('#zoomLevel').textContent(); await transactionPage.locator('#mobileEditSave').click(); await transactionPage.waitForTimeout(300); await transactionPage.reload({waitUntil:'networkidle'});
+  await beginDraftMove();
+  const editGeometry = await transactionPage.evaluate(()=>({ tools:[document.querySelector('.edit-toolbar').clientWidth,document.querySelector('.edit-toolbar').scrollWidth], mapHeight:document.querySelector('#mapStage').getBoundingClientRect().height, floorVisible:Boolean(document.querySelector('#floorControls')?.getClientRects().length) }));
+  assert(editGeometry.tools[0] === editGeometry.tools[1] && editGeometry.mapHeight >= 650 && !editGeometry.floorVisible, `Mobile Edit did not use a compact full-screen tool layout: ${JSON.stringify(editGeometry)}`);
+  const savedPoint = await pointSnapshot(); const saveViewportBefore = await transactionPage.evaluate(()=>window.DIAppBridge.getState().map.viewport.zoom); await transactionPage.locator('#mapStage').dispatchEvent('wheel',{deltaY:-160,clientX:190,clientY:420,bubbles:true,cancelable:true}); const savedZoomLabel = await transactionPage.locator('#zoomLevel').textContent(); await transactionPage.locator('#mobileEditSave').click(); await transactionPage.waitForTimeout(300); await transactionPage.reload({waitUntil:'networkidle'});
   assert(await pointSnapshot() === savedPoint,'Mobile Save did not durably persist the edit transaction');
   assert(await transactionPage.evaluate(()=>window.DIAppBridge.getState().map.viewport.zoom) > saveViewportBefore && await transactionPage.locator('#zoomLevel').textContent() === savedZoomLabel,'Immediate mobile Save dropped the pending viewport change');
   await transactionPage.locator('[data-mobile-section="plan"]').click(); await beginDraftMove(); await transactionPage.goBack(); await transactionPage.waitForTimeout(300);
@@ -219,9 +225,16 @@ try {
   await page.locator('#pointLayer [data-point]').first().dispatchEvent('click');
   await page.waitForTimeout(100);
   assert(await page.locator('#mobileDeviceSummary').isVisible(), 'Phone device tap did not open the summary sheet');
+  assert((await page.locator('#mobileDeviceSummaryChecks').textContent()).includes('checks passed'), 'Phone device summary omitted the commissioning glance count');
+  await page.locator('#mobileDeviceSummary .summary-grabber').dispatchEvent('pointerdown',{pointerId:71,pointerType:'touch',clientY:600,bubbles:true}); await page.locator('#mobileDeviceSummary .summary-grabber').dispatchEvent('pointerup',{pointerId:71,pointerType:'touch',clientY:540,bubbles:true});
+  assert(await page.locator('#mobileDeviceSummary').getAttribute('data-expanded') === 'true' && await page.locator('#mobileDeviceQuickRecord').isVisible(), 'Upward summary swipe did not reveal the quick device record');
+  await page.locator('#mobileDeviceSummary .summary-grabber').dispatchEvent('pointerdown',{pointerId:72,pointerType:'touch',clientY:540,bubbles:true}); await page.locator('#mobileDeviceSummary .summary-grabber').dispatchEvent('pointerup',{pointerId:72,pointerType:'touch',clientY:610,bubbles:true});
+  assert(await page.locator('#mobileDeviceSummary').getAttribute('data-expanded') === 'false', 'Downward summary swipe did not collapse the quick device record');
   await page.locator('#openDeviceRecord').click();
   assert(await page.locator('body').evaluate(body=>body.classList.contains('mobile-point-detail')), 'Phone summary did not expand to full details');
   assert(await page.locator('.inspector-card').getAttribute('role') === 'dialog', 'Phone device details are not exposed as a dialog');
+  const detailPriority = await page.evaluate(()=>({ navHeight:document.querySelector('.mobile-point-nav').getBoundingClientRect().height, first:[...document.querySelectorAll('#pointForm>details')].sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top)[0]?.querySelector('summary')?.textContent, saveVisible:Boolean(document.querySelector('#mobilePointSave')?.getClientRects().length) }));
+  assert(detailPriority.navHeight >= 44 && detailPriority.first === 'Commissioning and lifecycle' && detailPriority.saveVisible, `Phone device record did not prioritise commissioning with persistent navigation: ${JSON.stringify(detailPriority)}`);
   const macField = page.locator('#pointForm [name="macAddress"]'); await macField.evaluate(element=>{ element.closest('details').open=true; }); await macField.fill('not-a-mac'); await page.locator('#pointForm button[type="submit"]').click();
   assert(await macField.getAttribute('aria-invalid') === 'true' && await page.evaluate(()=>document.activeElement?.name === 'macAddress'),'Invalid MAC did not expose a focused inline field error');
   await macField.fill('AA:BB:CC:DD:EE:FF'); assert(await macField.getAttribute('aria-invalid') === null,'Correcting a constrained field did not clear its inline error');

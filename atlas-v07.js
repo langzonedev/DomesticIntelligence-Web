@@ -496,8 +496,19 @@
     $('#mobileDeviceSummaryMeta').textContent = [point.category, point.protocol && point.protocol !== 'Other' ? point.protocol : '', [point.brand, point.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
     const readiness = Core.deriveDeviceReadiness(point);
     $('#mobileDeviceSummaryStatus').textContent = readiness === 'ready' ? 'Ready' : readiness === 'attention' ? 'Needs attention' : 'Not tested';
+    const passed = point.checks.filter(check => check.status === 'pass').length;
+    const attention = point.checks.filter(check => check.status === 'fix').length;
+    $('#mobileDeviceSummaryChecks').textContent = `${passed}/${point.checks.length} checks passed${attention ? ` · ${attention} needs attention` : ''}`;
+    $('#openDeviceRecord').textContent = readiness === 'ready' ? 'View device record' : 'Continue commissioning';
     renderDeviceQuickRecord(point);
     const sheet = $('#mobileDeviceSummary'); sheet.dataset.pointId = point.id; setDeviceSummaryExpanded(false); sheet.hidden = false; $('#openDeviceRecord').focus();
+  }
+
+  function openSummaryRecord() {
+    const pointId = $('#mobileDeviceSummary')?.dataset.pointId; const focus = summaryReturnFocus; closeDeviceSummary({ restoreFocus:false });
+    if (pointId) bridge().selectSpatial('point', pointId);
+    window.DIMobileDetail?.open({ returnFocus: focus || stage, focusSelector:'#mobilePointClose' });
+    history.pushState({ mobileSection:'plan', overlay:'point' }, '', '#plan-device');
   }
 
   function onRender(event) {
@@ -592,12 +603,7 @@
     window.addEventListener('di:render', onRender);
     window.addEventListener('di:mobile-point-summary', event => openDeviceSummary(event.detail));
     $('#closeDeviceSummary')?.addEventListener('click', () => closeDeviceSummary());
-    $('#openDeviceRecord')?.addEventListener('click', () => {
-      const pointId = $('#mobileDeviceSummary')?.dataset.pointId; const focus = summaryReturnFocus; closeDeviceSummary({ restoreFocus:false });
-      if (pointId) bridge().selectSpatial('point', pointId);
-      window.DIMobileDetail?.open({ returnFocus: focus || stage, focusSelector:'#mobilePointClose' });
-      history.pushState({ mobileSection:'plan', overlay:'point' }, '', '#plan-device');
-    });
+    $('#openDeviceRecord')?.addEventListener('click', openSummaryRecord);
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#mobileDeviceSummary')?.hidden) { event.preventDefault(); closeDeviceSummary(); } });
     window.addEventListener('popstate', () => closeDeviceSummary({ restoreFocus:false }));
     window.addEventListener('resize', () => { syncResponsiveMode(); if (!pan && !pinch) applyViewport(currentState()?.map.viewport || viewport); });
