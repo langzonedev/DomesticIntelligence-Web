@@ -17,6 +17,7 @@
   let calibrationPoints = [];
   let calibrationActive = false;
   let summaryReturnFocus = null;
+  let summarySwipeStartY = null;
   const touches = new Map();
   let pinch = null;
   let layersReturnFocus = null;
@@ -332,21 +333,136 @@
     });
   }
 
+  function setDeviceSummaryExpanded(expanded) {
+    const sheet = $('#mobileDeviceSummary');
+    if (!sheet) return;
+    sheet.dataset.expanded = String(Boolean(expanded));
+    const grabber = sheet.querySelector('.summary-grabber');
+    if (grabber) {
+      grabber.setAttribute('aria-expanded', String(Boolean(expanded)));
+      grabber.setAttribute('aria-label', expanded ? 'Collapse device details' : 'Expand device details');
+    }
+  }
+
+  function formatSummaryDate(value) {
+    if (!value) return '';
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { day:'numeric', month:'short', year:'numeric' }).format(date);
+  }
+
+  function addQuickRecordSection(host, title, entries) {
+    const useful = entries.filter(([, value]) => value != null && String(value).trim());
+    if (!useful.length) return;
+    const section = document.createElement('section'); section.className = 'device-quick-section';
+    const heading = document.createElement('h3'); heading.textContent = title; section.append(heading);
+    useful.forEach(([label, value]) => {
+      const row = document.createElement('div'); row.className = 'device-quick-row';
+      const key = document.createElement('span'); key.textContent = label;
+      const detail = document.createElement('strong'); detail.textContent = value;
+      row.append(key, detail); section.append(row);
+    });
+    host.append(section);
+  }
+
+  function renderDeviceQuickRecord(point) {
+    const host = $('#mobileDeviceQuickRecord'); if (!host) return;
+    host.replaceChildren();
+    addQuickRecordSection(host, 'At a glance', [
+      ['Room', point.room],
+      ['Installed', formatSummaryDate(point.installationDate)],
+      ['Warranty', formatSummaryDate(point.warrantyDate)],
+      ['Installer', point.installerBusiness],
+      ['Serial', point.serialNumber],
+      ['Asset ref', point.assetReference]
+    ]);
+    addQuickRecordSection(host, 'Connection & installation', [
+      ['Protocol', point.protocol],
+      ['Network', point.networkLabel],
+      ['Controller', point.controllerReference],
+      ['Port', point.portReference],
+      ['Circuit / board', point.circuitReference],
+      ['Firmware', point.firmwareVersion],
+      ['Physical location', point.physicalLocationNotes]
+    ]);
+    addQuickRecordSection(host, 'Lifecycle', [
+      ['Last tested', formatSummaryDate(point.lastTestedDate)],
+      ['Issues / actions', point.issuesActions],
+      ['Maintenance', point.maintenanceNotes],
+      ['Homeowner notes', point.homeownerNotes]
+    ]);
+    if (!host.children.length) {
+      const empty = document.createElement('p'); empty.className = 'muted compact'; empty.textContent = 'No additional device details have been recorded yet.'; host.append(empty);
+    }
+  }
+
+  function ensureDeviceSummaryEnhancements() {
+    const sheet = $('#mobileDeviceSummary'); if (!sheet) return;
+    if (!$('#diDeviceQuickRecordStyles')) {
+      const style = document.createElement('style'); style.id = 'diDeviceQuickRecordStyles';
+      style.textContent = `
+        @media (max-width:760px){
+          .mobile-device-summary:not([hidden]){grid-template-rows:auto auto auto minmax(0,1fr) auto;max-height:calc(100dvh - 92px);overflow:hidden;transition:max-height .22s ease,bottom .22s ease}
+          .mobile-device-summary .summary-grabber{position:relative;cursor:ns-resize;touch-action:none}
+          .mobile-device-summary .summary-grabber::after{content:'';position:absolute;inset:-14px -28px;}
+          .mobile-device-summary[data-expanded="false"] .mobile-device-quick-record{display:none}
+          .mobile-device-summary[data-expanded="true"]{top:max(12px,env(safe-area-inset-top));bottom:calc(76px + env(safe-area-inset-bottom));max-height:none}
+          .mobile-device-summary[data-expanded="true"] .mobile-device-quick-record{display:grid;gap:10px;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 2px 12px;scrollbar-gutter:stable}
+          .device-quick-section{display:grid;gap:0;border:1px solid var(--di-border);border-radius:12px;background:var(--di-subtle);overflow:hidden}
+          .device-quick-section h3{margin:0;padding:10px 12px 7px;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--di-muted)}
+          .device-quick-row{display:grid;grid-template-columns:minmax(92px,.85fr) minmax(0,1.35fr);gap:12px;padding:9px 12px;border-top:1px solid var(--di-border);align-items:start}
+          .device-quick-row span{color:var(--di-muted);font-size:.82rem}
+          .device-quick-row strong{min-width:0;overflow-wrap:anywhere;font-size:.88rem;font-weight:750;text-align:right}
+          .mobile-device-summary[data-expanded="true"] #openDeviceRecord{position:sticky;bottom:0}
+        }
+      `;
+      document.head.append(style);
+    }
+    let quick = $('#mobileDeviceQuickRecord');
+    if (!quick) {
+      quick = document.createElement('div'); quick.id = 'mobileDeviceQuickRecord'; quick.className = 'mobile-device-quick-record'; quick.setAttribute('aria-label', 'Device quick record');
+      const open = $('#openDeviceRecord'); open?.before(quick);
+    }
+    const grabber = sheet.querySelector('.summary-grabber');
+    if (grabber && !grabber.dataset.quickRecordBound) {
+      grabber.dataset.quickRecordBound = 'true'; grabber.tabIndex = 0; grabber.setAttribute('role', 'button');
+      grabber.addEventListener('pointerdown', event => {
+        summarySwipeStartY = event.clientY;
+        try { grabber.setPointerCapture?.(event.pointerId); } catch (_) {}
+      });
+      grabber.addEventListener('pointerup', event => {
+        if (summarySwipeStartY == null) return;
+        const delta = event.clientY - summarySwipeStartY; summarySwipeStartY = null;
+        try { grabber.releasePointerCapture?.(event.pointerId); } catch (_) {}
+        const expanded = sheet.dataset.expanded === 'true';
+        if (delta < -20) setDeviceSummaryExpanded(true);
+        else if (delta > 20) setDeviceSummaryExpanded(false);
+        else setDeviceSummaryExpanded(!expanded);
+      });
+      grabber.addEventListener('pointercancel', () => { summarySwipeStartY = null; });
+      grabber.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault(); setDeviceSummaryExpanded(sheet.dataset.expanded !== 'true');
+      });
+    }
+  }
+
   function closeDeviceSummary({ restoreFocus = true } = {}) {
     const sheet = $('#mobileDeviceSummary'); if (!sheet || sheet.hidden) return;
-    sheet.hidden = true;
+    sheet.hidden = true; setDeviceSummaryExpanded(false);
     if (restoreFocus) requestAnimationFrame(() => (summaryReturnFocus?.isConnected ? summaryReturnFocus : stage).focus());
     summaryReturnFocus = null;
   }
 
   function openDeviceSummary(detail) {
     const state = currentState(); const point = state?.map.points.find(item => item.id === detail?.pointId); if (!point) return;
+    ensureDeviceSummaryEnhancements();
     summaryReturnFocus = detail.returnFocus || document.activeElement;
     $('#mobileDeviceSummaryTitle').textContent = point.name;
     $('#mobileDeviceSummaryMeta').textContent = [point.category, point.protocol && point.protocol !== 'Other' ? point.protocol : '', [point.brand, point.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
     const readiness = Core.deriveDeviceReadiness(point);
     $('#mobileDeviceSummaryStatus').textContent = readiness === 'ready' ? 'Ready' : readiness === 'attention' ? 'Needs attention' : 'Not tested';
-    const sheet = $('#mobileDeviceSummary'); sheet.dataset.pointId = point.id; sheet.hidden = false; $('#openDeviceRecord').focus();
+    renderDeviceQuickRecord(point);
+    const sheet = $('#mobileDeviceSummary'); sheet.dataset.pointId = point.id; setDeviceSummaryExpanded(false); sheet.hidden = false; $('#openDeviceRecord').focus();
   }
 
   function onRender(event) {
@@ -362,6 +478,7 @@
   }
 
   function bind() {
+    ensureDeviceSummaryEnhancements();
     document.querySelectorAll('[data-atlas-tool]').forEach(button => button.addEventListener('click', () => setTool(button.dataset.atlasTool)));
     $('#zoomIn')?.addEventListener('click', () => zoomAt(viewport.zoom * 1.2, null, null, 'View zoomed in.'));
     $('#zoomOut')?.addEventListener('click', () => zoomAt(viewport.zoom / 1.2, null, null, 'View zoomed out.'));
