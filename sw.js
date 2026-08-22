@@ -1,5 +1,5 @@
-const CACHE='domestic-intelligence-v07-19';
-const VERSION='07-19';
+const CACHE='domestic-intelligence-v07-20';
+const VERSION='07-20';
 const versioned=path=>`${path}?v=${VERSION}`;
 const SHELL=['./','./index.html',...['./theme.css','./theme-v07.css','./theme-bridge.css','./v2.css','./mobile-v03.css','./mobile-v06.css','./ui-kit.css','./atlas-v07.css','./editor-core.js','./property-model.js','./storage.js','./exporters.js','./ui-icons.js','./ui-kit.js','./state-guard-v04.js','./mobile-v03.js','./app-v2.js','./mobile-v05.js','./atlas-v07.js','./manifest.webmanifest'].map(versioned),'./brand-mark.svg','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./vendor/pdf.min.mjs','./vendor/pdf.worker.min.mjs','./vendor/PDFJS-LICENSE'];
 

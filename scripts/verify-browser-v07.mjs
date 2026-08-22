@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-19')),
-    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-19'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-20')),
+    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-20'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
@@ -106,6 +106,8 @@ try {
   }
 
   await page.setViewportSize({ width:1440,height:900 }); await page.goto(origin,{waitUntil:'networkidle'});
+  const viewCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(), heading=document.querySelector('.map-card>.section-heading').getBoundingClientRect(); return { stage:{x:stage.x,y:stage.y,width:stage.width,height:stage.height}, heading:{width:heading.width,right:heading.right}, cardRight:document.querySelector('.map-card').getBoundingClientRect().right }; });
+  assert(viewCanvas.heading.width < viewCanvas.stage.width * .65 && viewCanvas.heading.right < viewCanvas.cardRight - 20, `View heading stretched across the atlas: ${JSON.stringify(viewCanvas)}`);
   const beforeZoom = await page.locator('#zoomLevel').textContent(); await page.locator('#zoomIn').click(); const afterZoom = await page.locator('#zoomLevel').textContent();
   assert(beforeZoom !== afterZoom, 'Zoom button did not change the persisted viewport');
   const wall = page.locator('#wallLayer .wall-hit').first(); await wall.click({ force:true });
@@ -114,6 +116,8 @@ try {
   const afterViewWall = await page.evaluate(() => JSON.stringify(window.DIAppBridge.getState().map.walls[0]));
   assert(beforeWall === afterViewWall, 'View mode allowed an accidental wall edit');
   await page.locator('[data-editor-mode="edit"]').click();
+  const editCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(); return {x:stage.x,y:stage.y,width:stage.width,height:stage.height,zoom:document.querySelector('#zoomLevel').textContent}; });
+  assert(Math.abs(editCanvas.width-viewCanvas.stage.width)<1 && Math.abs(editCanvas.height-viewCanvas.stage.height)<1 && editCanvas.zoom==='100%', `View/Edit atlas space diverged or did not fit the storey: ${JSON.stringify({view:viewCanvas.stage,edit:editCanvas})}`);
   const point = page.locator('#pointLayer [data-point]').first(); const box = await point.boundingBox();
   if (box) { await page.mouse.move(box.x+box.width/2,box.y+box.height/2); await page.mouse.down(); await page.mouse.move(box.x+box.width/2+36,box.y+box.height/2+24,{steps:3}); await page.mouse.up(); }
   assert(await page.locator('#undoButton').isEnabled(), 'Direct point drag did not create an undoable spatial operation');
@@ -176,9 +180,9 @@ try {
 
   const transactionContext = await browser.newContext({ serviceWorkers:'block', colorScheme:'light', viewport:{width:390,height:844} });
   const transactionPage = await transactionContext.newPage(); await transactionPage.goto(`${origin}?transactions`,{waitUntil:'networkidle'}); await transactionPage.locator('[data-mobile-section="plan"]').click();
-  await Promise.all([transactionPage.waitForLoadState('domcontentloaded'),transactionPage.locator('#addFloorButton').click()]); await transactionPage.waitForTimeout(180);
+  await Promise.all([transactionPage.waitForLoadState('domcontentloaded'),transactionPage.locator('#addFloorButton').click()]); await transactionPage.waitForFunction(()=>window.DIAppBridge); await transactionPage.waitForTimeout(180);
   const groundFloorId = await transactionPage.evaluate(()=>window.DIAppBridge.getState().home.floors[0].id); const secondFloorId = await transactionPage.evaluate(()=>window.DIAppBridge.getState().home.floors[1].id);
-  await Promise.all([transactionPage.waitForLoadState('domcontentloaded'),transactionPage.locator(`#floorControls [data-floor-id="${groundFloorId}"]`).click()]); await transactionPage.locator('[data-mobile-section="plan"]').click();
+  await Promise.all([transactionPage.waitForLoadState('domcontentloaded'),transactionPage.locator(`#floorControls [data-floor-id="${groundFloorId}"]`).click()]); await transactionPage.waitForFunction(()=>window.DIAppBridge); await transactionPage.locator('[data-mobile-section="plan"]').click();
   const pointSnapshot = () => transactionPage.evaluate(()=>JSON.stringify(window.DIAppBridge.getState().map.points[0]));
   const beginDraftMove = async () => {
     await transactionPage.locator('[data-editor-mode="edit"]').click();

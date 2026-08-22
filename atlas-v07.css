@@ -121,6 +121,13 @@
   .topbar .brand>span{display:none}
 }
 
+@media (min-width:761px){
+  .map-card{position:relative}
+  .map-card>.section-heading{position:absolute;z-index:2;inset:10px auto auto 10px;width:max-content;max-width:calc(100% - 20px);margin:0;padding:6px 8px;border-radius:10px;background:color-mix(in srgb,var(--di-surface) 90%,transparent);pointer-events:none;backdrop-filter:blur(10px)}
+  .map-card>.edit-toolbar{position:absolute;z-index:3;top:10px;right:10px;left:10px;margin:0;padding:4px;border:1px solid var(--di-border);border-radius:10px;background:color-mix(in srgb,var(--di-surface) 92%,transparent);box-shadow:0 8px 24px rgb(5 3 12 / 18%);backdrop-filter:blur(12px);flex-wrap:nowrap;overflow-x:auto}
+  .map-card:has(.map-stage.editing)>.section-heading{display:none}
+}
+
 @media (max-width:760px){
   body.mobile-section-plan{overflow:hidden}
   body.mobile-section-plan .app-shell{display:flex;height:calc(100dvh - 128px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:0;overflow:hidden;flex-direction:column}
@@ -129,7 +136,7 @@
   body.mobile-section-plan .workspace-controls{flex:0 0 auto}
   body.mobile-section-plan .editor-grid{flex:1 1 0;min-height:0;margin:0!important;overflow:hidden}
   body.mobile-section-plan .map-card{position:relative;height:100%;min-height:0}
-  body.mobile-section-plan .map-card>.section-heading{position:absolute;z-index:3;inset:8px 10px auto;padding:6px 8px;border-radius:10px;background:color-mix(in srgb,var(--di-surface) 88%,transparent);pointer-events:none}
+  body.mobile-section-plan .map-card>.section-heading{position:absolute;z-index:3;inset:8px auto auto 10px;width:max-content;max-width:calc(100% - 20px);padding:6px 8px;border-radius:10px;background:color-mix(in srgb,var(--di-surface) 88%,transparent);pointer-events:none}
   body.mobile-section-plan .map-card>.section-heading .status-chip{display:none}
   body.mobile-section-plan .map-stage{height:100%;min-height:0!important}
   body.mobile-section-plan .map-help{display:none}

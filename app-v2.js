@@ -203,7 +203,8 @@
   function updateView(view) { replacePresent({ ...state(), view }); }
   function updateWorkspaceMode(workspaceMode) {
     editorTool = 'select'; wallStart = null;
-    replacePresent({ ...state(), workspaceMode });
+    const fitted = Core.setMapViewport(state(), { x: 0, y: 0, zoom: 1 });
+    replacePresent({ ...fitted, workspaceMode });
   }
 
   function requireEditMode(action = 'change the spatial record') {
