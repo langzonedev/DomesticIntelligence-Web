@@ -75,20 +75,22 @@
     style.id = 'di-mobile-map-controls-style';
     style.textContent = `
       @media (max-width:760px){
-        .mobile-map-controls-toggle{display:none;width:calc(100% - 20px);min-height:46px;margin:8px 10px 6px;padding:8px 12px;border:1px solid var(--di-border,var(--border,#36554c));border-radius:14px;background:color-mix(in srgb,var(--di-surface,var(--surface,#fff)) 94%,transparent);color:var(--di-text,inherit);font:inherit;text-align:left;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgb(5 3 12 / 16%)}
+        body.mobile-section-plan .mobile-top-appbar{display:none!important}
+        body.mobile-section-plan{padding-top:env(safe-area-inset-top)!important}
+        .mobile-map-controls-toggle{display:none;width:calc(100% - 16px);min-height:44px;margin:6px 8px 4px;padding:7px 11px;border:1px solid var(--di-border,var(--border,#36554c));border-radius:14px;background:color-mix(in srgb,var(--di-surface,var(--surface,#fff)) 94%,transparent);color:var(--di-text,inherit);font:inherit;text-align:left;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgb(5 3 12 / 16%)}
         body.mobile-section-plan .mobile-map-controls-toggle{display:flex}
         .mobile-map-controls-toggle strong{display:block;font-size:.94rem;line-height:1.15}
-        .mobile-map-controls-toggle small{display:block;margin-top:2px;color:var(--di-muted,var(--muted,#91a79f));font-size:.72rem;font-weight:650}
+        .mobile-map-controls-toggle small{display:block;margin-top:1px;color:var(--di-muted,var(--muted,#91a79f));font-size:.7rem;font-weight:650}
         .mobile-map-controls-toggle .mobile-map-controls-chevron{font-size:1.2rem;color:var(--di-muted,var(--muted,#91a79f));transition:transform .18s ease}
         body.mobile-map-controls-open .mobile-map-controls-toggle .mobile-map-controls-chevron{transform:rotate(180deg)}
         body.mobile-section-plan.mobile-map-controls-collapsed .mobile-plan-floors{display:none!important}
         body.mobile-section-plan.mobile-map-controls-collapsed .workspace-controls .editor-mode-bar{display:none!important}
         body.mobile-section-plan.mobile-map-controls-collapsed .workspace-controls .atlas-commandbar{display:none!important}
-        body.mobile-section-plan:not(.mobile-map-controls-collapsed) .mobile-plan-floors{padding-block:4px!important;margin-block:0!important}
+        body.mobile-section-plan:not(.mobile-map-controls-collapsed) .mobile-plan-floors{padding-block:3px!important;margin-block:0!important}
         body.mobile-section-plan:not(.mobile-map-controls-collapsed) .floor-choice{min-height:40px!important;padding-block:6px!important}
-        body.mobile-section-plan:not(.mobile-map-controls-collapsed) .editor-mode-bar{margin-block:0 4px!important;padding-block:4px!important}
+        body.mobile-section-plan:not(.mobile-map-controls-collapsed) .editor-mode-bar{margin-block:0 3px!important;padding-block:3px!important}
         body.mobile-section-plan:not(.mobile-map-controls-collapsed) .editor-mode-bar .segmented button{min-height:42px!important;padding-block:6px!important}
-        body.mobile-section-plan:not(.mobile-map-controls-collapsed) .atlas-commandbar{padding-block:4px!important;margin-block:0 4px!important}
+        body.mobile-section-plan:not(.mobile-map-controls-collapsed) .atlas-commandbar{padding-block:3px!important;margin-block:0 3px!important}
         body.mobile-section-plan:not(.mobile-map-controls-collapsed) .atlas-commandbar button{min-height:42px!important}
       }
     `;
@@ -129,5 +131,98 @@
     apply(window.DIAppBridge?.getState?.());
   }
 
-  window.addEventListener('di:app-state-ready', installCompactMobileMapControls, { once: true });
+  function installConsistentRoomPicker() {
+    const select = document.querySelector('#pointForm select[name="room"]');
+    if (!select || select.dataset.diRoomPicker === 'true') return;
+
+    const existing = select.nextElementSibling;
+    if (existing?.classList.contains('inline-choice-group') || existing?.classList.contains('searchable-choice-picker')) existing.remove();
+    select.dataset.inlineEnhanced = 'true';
+    select.dataset.diRoomPicker = 'true';
+    select.classList.add('inline-select-source');
+    select.setAttribute('aria-hidden', 'true');
+    select.tabIndex = -1;
+
+    const picker = document.createElement('div');
+    picker.className = 'searchable-choice-picker';
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'searchable-choice-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    const panel = document.createElement('div');
+    panel.className = 'searchable-choice-panel';
+    panel.hidden = true;
+    const searchLabel = document.createElement('label');
+    searchLabel.className = 'searchable-choice-search';
+    searchLabel.textContent = 'Search room ';
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.autocomplete = 'off';
+    const list = document.createElement('div');
+    list.className = 'searchable-choice-list';
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', 'Room');
+    searchLabel.append(search);
+    panel.append(searchLabel, list);
+    picker.append(trigger, panel);
+    select.insertAdjacentElement('afterend', picker);
+
+    const syncTrigger = () => {
+      trigger.textContent = select.selectedOptions[0]?.textContent || 'Choose room';
+    };
+    const renderOptions = () => {
+      const query = search.value.trim().toLowerCase();
+      list.replaceChildren();
+      [...select.options].filter(option => !query || option.textContent.toLowerCase().includes(query)).forEach(option => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'searchable-choice-option';
+        button.dataset.value = option.value;
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', String(option.value === select.value));
+        button.textContent = option.textContent;
+        button.disabled = option.disabled;
+        button.addEventListener('click', () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          panel.hidden = true;
+          trigger.setAttribute('aria-expanded', 'false');
+          syncTrigger();
+          trigger.focus();
+        });
+        list.append(button);
+      });
+    };
+
+    trigger.addEventListener('click', () => {
+      const opening = panel.hidden;
+      panel.hidden = !opening;
+      trigger.setAttribute('aria-expanded', String(opening));
+      if (opening) {
+        search.value = '';
+        renderOptions();
+        search.focus();
+      }
+    });
+    search.addEventListener('input', renderOptions);
+    panel.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      panel.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.focus();
+    });
+    select.addEventListener('change', syncTrigger);
+    window.addEventListener('di:render', () => {
+      syncTrigger();
+      if (!panel.hidden) renderOptions();
+    });
+    syncTrigger();
+  }
+
+  window.addEventListener('di:app-state-ready', () => {
+    installCompactMobileMapControls();
+    setTimeout(installConsistentRoomPicker, 0);
+  }, { once: true });
 })();
