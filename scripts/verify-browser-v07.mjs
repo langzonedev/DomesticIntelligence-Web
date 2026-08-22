@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-20')),
-    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-20'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-21')),
+    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-21'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
@@ -106,8 +106,8 @@ try {
   }
 
   await page.setViewportSize({ width:1440,height:900 }); await page.goto(origin,{waitUntil:'networkidle'});
-  const viewCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(), heading=document.querySelector('.map-card>.section-heading').getBoundingClientRect(); return { stage:{x:stage.x,y:stage.y,width:stage.width,height:stage.height}, heading:{width:heading.width,right:heading.right}, cardRight:document.querySelector('.map-card').getBoundingClientRect().right }; });
-  assert(viewCanvas.heading.width < viewCanvas.stage.width * .65 && viewCanvas.heading.right < viewCanvas.cardRight - 20, `View heading stretched across the atlas: ${JSON.stringify(viewCanvas)}`);
+  const viewCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(), heading=document.querySelector('.map-card>.section-heading'); return { stage:{x:stage.x,y:stage.y,width:stage.width,height:stage.height}, headingVisible:Boolean(heading.getClientRects().length) }; });
+  assert(!viewCanvas.headingVisible, `Desktop View left chrome across the atlas: ${JSON.stringify(viewCanvas)}`);
   const beforeZoom = await page.locator('#zoomLevel').textContent(); await page.locator('#zoomIn').click(); const afterZoom = await page.locator('#zoomLevel').textContent();
   assert(beforeZoom !== afterZoom, 'Zoom button did not change the persisted viewport');
   const wall = page.locator('#wallLayer .wall-hit').first(); await wall.click({ force:true });
@@ -116,8 +116,19 @@ try {
   const afterViewWall = await page.evaluate(() => JSON.stringify(window.DIAppBridge.getState().map.walls[0]));
   assert(beforeWall === afterViewWall, 'View mode allowed an accidental wall edit');
   await page.locator('[data-editor-mode="edit"]').click();
-  const editCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(); return {x:stage.x,y:stage.y,width:stage.width,height:stage.height,zoom:document.querySelector('#zoomLevel').textContent}; });
+  const editCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(), toolbar=document.querySelector('#editToolbar').getBoundingClientRect(), card=document.querySelector('.map-card').getBoundingClientRect(); return {x:stage.x,y:stage.y,width:stage.width,height:stage.height,zoom:document.querySelector('#zoomLevel').textContent,toolbarOverlapsMap:toolbar.bottom>card.top&&toolbar.top<card.bottom}; });
   assert(Math.abs(editCanvas.width-viewCanvas.stage.width)<1 && Math.abs(editCanvas.height-viewCanvas.stage.height)<1 && editCanvas.zoom==='100%', `View/Edit atlas space diverged or did not fit the storey: ${JSON.stringify({view:viewCanvas.stage,edit:editCanvas})}`);
+  assert(!editCanvas.toolbarOverlapsMap, `Desktop Edit toolbar still overlaps the atlas: ${JSON.stringify(editCanvas)}`);
+  const topWall = await page.evaluate(() => {
+    const node = [...document.querySelectorAll('#wallLayer .wall-hit')].sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top)[0];
+    if (!node) return null;
+    const rect = node.getBoundingClientRect();
+    const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+    return { id:node.dataset.wall,x,y,hitId:document.elementFromPoint(x,y)?.closest('[data-wall]')?.dataset.wall || null };
+  });
+  assert(topWall?.id && topWall.hitId===topWall.id, `Top wall pointer target is obstructed: ${JSON.stringify(topWall)}`);
+  await page.mouse.click(topWall.x,topWall.y);
+  assert(await page.evaluate(id=>window.DIAppBridge.getSelection().type==='wall'&&window.DIAppBridge.getSelection().id===id,topWall.id),'Top wall could not be selected in desktop Edit mode');
   const point = page.locator('#pointLayer [data-point]').first(); const box = await point.boundingBox();
   if (box) { await page.mouse.move(box.x+box.width/2,box.y+box.height/2); await page.mouse.down(); await page.mouse.move(box.x+box.width/2+36,box.y+box.height/2+24,{steps:3}); await page.mouse.up(); }
   assert(await page.locator('#undoButton').isEnabled(), 'Direct point drag did not create an undoable spatial operation');

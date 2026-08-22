@@ -11,24 +11,24 @@
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       let releaseRefreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-20') === 'done') return;
+        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-21') === 'done') return;
         releaseRefreshing = true;
-        sessionStorage.setItem('di-release-refresh-07-20', 'done');
+        sessionStorage.setItem('di-release-refresh-07-21', 'done');
         location.reload();
       });
     }
   </script>
-  <link rel="manifest" href="manifest.webmanifest?v=07-20">
+  <link rel="manifest" href="manifest.webmanifest?v=07-21">
   <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="theme.css?v=07-20">
-  <link rel="stylesheet" href="theme-v07.css?v=07-20">
-  <link rel="stylesheet" href="v2.css?v=07-20">
-  <link rel="stylesheet" href="theme-bridge.css?v=07-20">
-  <link rel="stylesheet" href="mobile-v03.css?v=07-20">
-  <link rel="stylesheet" href="mobile-v06.css?v=07-20">
-  <link rel="stylesheet" href="ui-kit.css?v=07-20">
-  <link rel="stylesheet" href="atlas-v07.css?v=07-20">
+  <link rel="stylesheet" href="theme.css?v=07-21">
+  <link rel="stylesheet" href="theme-v07.css?v=07-21">
+  <link rel="stylesheet" href="v2.css?v=07-21">
+  <link rel="stylesheet" href="theme-bridge.css?v=07-21">
+  <link rel="stylesheet" href="mobile-v03.css?v=07-21">
+  <link rel="stylesheet" href="mobile-v06.css?v=07-21">
+  <link rel="stylesheet" href="ui-kit.css?v=07-21">
+  <link rel="stylesheet" href="atlas-v07.css?v=07-21">
 </head>
 <body>
   <div class="app-shell">
@@ -107,6 +107,7 @@
               <button type="button" class="tool-button" data-tool="point">+ Device point</button>
               <button id="uploadPlanButton" type="button" class="tool-button">Upload plan</button>
               <button type="button" class="tool-button atlas-layers-trigger" id="atlasEditLayersButton" aria-haspopup="dialog" aria-controls="atlasLayersDialog"><span aria-hidden="true">▱</span> Layers</button>
+              <button id="editFitStorey" type="button" class="tool-button">Fit storey</button>
               <input id="planInput" class="visually-hidden-file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" aria-label="Choose a floor-plan file">
               <label class="grid-control">Grid <select id="gridSize"><option value="10">10</option><option value="20" selected>20</option><option value="40">40</option></select></label>
             </div>
@@ -225,16 +226,16 @@
     <button id="atlasLayersShowAll" type="button" class="quiet-action full">Show all and unlock</button>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="editor-core.js?v=07-20"></script>
-  <script src="property-model.js?v=07-20"></script>
-  <script src="storage.js?v=07-20"></script>
-  <script src="exporters.js?v=07-20"></script>
-  <script src="ui-icons.js?v=07-20"></script>
-  <script src="ui-kit.js?v=07-20"></script>
-  <script src="state-guard-v04.js?v=07-20"></script>
-  <script src="mobile-v03.js?v=07-20"></script>
-  <script src="app-v2.js?v=07-20"></script>
-  <script src="mobile-v05.js?v=07-20"></script>
-  <script src="atlas-v07.js?v=07-20"></script>
+  <script src="editor-core.js?v=07-21"></script>
+  <script src="property-model.js?v=07-21"></script>
+  <script src="storage.js?v=07-21"></script>
+  <script src="exporters.js?v=07-21"></script>
+  <script src="ui-icons.js?v=07-21"></script>
+  <script src="ui-kit.js?v=07-21"></script>
+  <script src="state-guard-v04.js?v=07-21"></script>
+  <script src="mobile-v03.js?v=07-21"></script>
+  <script src="app-v2.js?v=07-21"></script>
+  <script src="mobile-v05.js?v=07-21"></script>
+  <script src="atlas-v07.js?v=07-21"></script>
 </body>
 </html>

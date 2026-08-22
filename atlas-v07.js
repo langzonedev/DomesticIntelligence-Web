@@ -529,6 +529,7 @@
     $('#zoomIn')?.addEventListener('click', () => zoomAt(viewport.zoom * 1.2, null, null, 'View zoomed in.'));
     $('#zoomOut')?.addEventListener('click', () => zoomAt(viewport.zoom / 1.2, null, null, 'View zoomed out.'));
     $('#fitStorey')?.addEventListener('click', () => resetViewport('Storey fitted to the canvas.'));
+    $('#editFitStorey')?.addEventListener('click', () => resetViewport('Storey fitted to the canvas.'));
     $('#resetView')?.addEventListener('click', () => resetViewport());
     document.querySelectorAll('.atlas-layers-trigger').forEach(button => button.addEventListener('click', () => openLayerSheet(button)));
     $('#atlasLayersClose')?.addEventListener('click', closeLayerSheet);

@@ -41,6 +41,16 @@
   let saveTimer = null;
   let keyboardCursor = { x: 600, y: 400 };
 
+  function placeEditorToolbar() {
+    const desktopHost = document.querySelector('.workspace-controls');
+    const mobileHost = document.querySelector('.map-card');
+    const useDesktopHost = matchMedia('(min-width: 761px)').matches;
+    const target = useDesktopHost ? desktopHost : mobileHost;
+    if (!target || el.toolbar.parentElement === target) return;
+    if (useDesktopHost) target.append(el.toolbar);
+    else target.insertBefore(el.toolbar, el.stage);
+  }
+
   function state() { return previewState || history.present; }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function escapeHtml(value) { return String(value == null ? '' : value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
@@ -216,6 +226,7 @@
 
   function render() {
     const current = state();
+    placeEditorToolbar();
     document.querySelectorAll('.mode-tab').forEach(button => {
       const active = button.dataset.view === current.view;
       button.classList.toggle('active', active);
@@ -685,6 +696,7 @@
     });
     window.addEventListener('online', () => { showConnection(''); flash('Back online. Local changes are preserved.'); });
     window.addEventListener('offline', () => showConnection('Offline mode — the cached editor remains available and changes stay on this browser.'));
+    window.addEventListener('resize', placeEditorToolbar);
   }
 
   async function init() {

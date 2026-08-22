@@ -123,9 +123,10 @@
 
 @media (min-width:761px){
   .map-card{position:relative}
-  .map-card>.section-heading{position:absolute;z-index:2;inset:10px auto auto 10px;width:max-content;max-width:calc(100% - 20px);margin:0;padding:6px 8px;border-radius:10px;background:color-mix(in srgb,var(--di-surface) 90%,transparent);pointer-events:none;backdrop-filter:blur(10px)}
-  .map-card>.edit-toolbar{position:absolute;z-index:3;top:10px;right:10px;left:10px;margin:0;padding:4px;border:1px solid var(--di-border);border-radius:10px;background:color-mix(in srgb,var(--di-surface) 92%,transparent);box-shadow:0 8px 24px rgb(5 3 12 / 18%);backdrop-filter:blur(12px);flex-wrap:nowrap;overflow-x:auto}
-  .map-card:has(.map-stage.editing)>.section-heading{display:none}
+  .map-card>.section-heading{display:none}
+  .workspace-controls>.edit-toolbar{grid-column:2;grid-row:1;display:flex;align-items:center;gap:6px;min-width:0;margin:0;padding:5px 7px;border:1px solid var(--di-border);border-radius:12px;background:var(--di-surface);box-shadow:0 8px 24px rgb(19 7 47 / 7%);flex-wrap:nowrap;overflow-x:auto}
+  .workspace-controls>.edit-toolbar[hidden]{display:none}
+  body:has(.map-stage.editing) .workspace-controls>.atlas-commandbar{display:none}
 }
 
 @media (max-width:760px){

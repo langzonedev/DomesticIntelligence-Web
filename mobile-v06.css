@@ -74,6 +74,7 @@
   .mobile-edit-actions button{min-height:44px;padding-inline:9px}
   .mobile-floor-edit .edit-toolbar{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;width:100%;margin:0;padding:0 0 7px;overflow:visible!important;scrollbar-width:none}
   .mobile-floor-edit .edit-toolbar .tool-button{min-width:0;min-height:50px;padding:5px 3px;font-size:.72rem;line-height:1.15;white-space:normal}
+  .mobile-floor-edit .edit-toolbar #uploadPlanButton{display:none!important}
   .mobile-floor-edit .edit-toolbar .grid-control{display:none!important}
   .mobile-floor-edit .map-stage{width:min(100%,calc((100dvh - 132px)*2/3))!important;max-height:calc(100dvh - 132px)!important}
 }
