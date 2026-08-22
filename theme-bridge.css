@@ -154,3 +154,74 @@
   text-align: left;
 }
 .searchable-choice-option[aria-selected="true"] { background: var(--accent, #78d7c6); color: #071b16; font-weight: 800; }
+
+/* Mobile selected-device quick record refinements. */
+@media (max-width: 760px) {
+  .mobile-device-summary:not([hidden]) {
+    grid-template-rows: auto auto auto auto auto !important;
+    align-content: start !important;
+    max-height: calc(100dvh - 92px) !important;
+  }
+
+  .mobile-device-summary[data-expanded="true"] {
+    top: auto !important;
+    max-height: calc(100dvh - 92px) !important;
+    height: auto !important;
+  }
+
+  #mobileDeviceSummaryStatus {
+    width: max-content !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: auto !important;
+    justify-self: start !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 5px 10px !important;
+    border-radius: 999px !important;
+  }
+
+  .mobile-device-summary .summary-grabber {
+    width: 100% !important;
+    min-height: 30px !important;
+    height: auto !important;
+    margin: -2px 0 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    color: var(--di-muted) !important;
+    font-size: .76rem !important;
+    font-weight: 800 !important;
+    letter-spacing: .02em !important;
+  }
+
+  .mobile-device-summary .summary-grabber::before {
+    content: '⌃  Swipe up for device details';
+    display: block;
+  }
+
+  .mobile-device-summary[data-expanded="true"] .summary-grabber::before {
+    content: '⌄  Swipe down to collapse';
+  }
+
+  .mobile-device-summary .summary-grabber::after {
+    inset: -6px 0 !important;
+  }
+
+  .mobile-device-summary[data-expanded="true"] .mobile-device-quick-record {
+    display: grid !important;
+    gap: 10px !important;
+    min-height: 0 !important;
+    max-height: min(56dvh, 34rem) !important;
+    overflow-y: auto !important;
+    align-content: start !important;
+    padding: 0 2px 8px !important;
+  }
+
+  .mobile-device-summary[data-expanded="true"] #openDeviceRecord {
+    position: static !important;
+    margin-top: 2px !important;
+  }
+}
