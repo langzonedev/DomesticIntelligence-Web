@@ -367,29 +367,64 @@
   function renderDeviceQuickRecord(point) {
     const host = $('#mobileDeviceQuickRecord'); if (!host) return;
     host.replaceChildren();
-    addQuickRecordSection(host, 'At a glance', [
-      ['Room', point.room],
-      ['Installed', formatSummaryDate(point.installationDate)],
-      ['Warranty', formatSummaryDate(point.warrantyDate)],
-      ['Installer', point.installerBusiness],
-      ['Serial', point.serialNumber],
-      ['Asset ref', point.assetReference]
+    const state = currentState();
+    const roomName = state?.rooms?.find(room => room.id === point.roomId)?.name || point.room || '';
+    const readiness = Core.deriveDeviceReadiness(point);
+
+    addQuickRecordSection(host, 'Identity', [
+      ['Name', point.name],
+      ['Category', point.category],
+      ['Room', roomName],
+      ['Brand', point.brand],
+      ['Model', point.model],
+      ['Serial number', point.serialNumber],
+      ['Asset / installer ref', point.assetReference],
+      ['Readiness', readiness === 'ready' ? 'Ready' : readiness === 'attention' ? 'Needs attention' : 'Not tested']
     ]);
-    addQuickRecordSection(host, 'Connection & installation', [
+
+    addQuickRecordSection(host, 'Connectivity', [
       ['Protocol', point.protocol],
-      ['Network', point.networkLabel],
-      ['Controller', point.controllerReference],
-      ['Port', point.portReference],
-      ['Circuit / board', point.circuitReference],
-      ['Firmware', point.firmwareVersion],
-      ['Physical location', point.physicalLocationNotes]
+      ['Network / VLAN', point.networkLabel],
+      ['Network address', point.networkAddress],
+      ['MAC address', point.macAddress],
+      ['Hub / controller / switch', point.controllerReference],
+      ['Port reference', point.portReference]
     ]);
-    addQuickRecordSection(host, 'Lifecycle', [
+
+    addQuickRecordSection(host, 'Installation', [
+      ['Installation date', formatSummaryDate(point.installationDate)],
+      ['Warranty date', formatSummaryDate(point.warrantyDate)],
+      ['Installer / business', point.installerBusiness],
+      ['Circuit / board reference', point.circuitReference],
+      ['Firmware / version', point.firmwareVersion],
+      ['Physical location notes', point.physicalLocationNotes]
+    ]);
+
+    const checks = Array.isArray(point.checks) ? point.checks.map((check, index) => {
+      const label = check?.label || check?.name || `Check ${index + 1}`;
+      const status = check?.status === 'pass' ? 'Pass' : check?.status === 'fix' ? 'Needs attention' : check?.status || 'Pending';
+      return [label, status];
+    }) : [];
+    addQuickRecordSection(host, 'Commissioning checks', checks);
+
+    addQuickRecordSection(host, 'Lifecycle & notes', [
       ['Last tested', formatSummaryDate(point.lastTestedDate)],
       ['Issues / actions', point.issuesActions],
-      ['Maintenance', point.maintenanceNotes],
+      ['Maintenance notes', point.maintenanceNotes],
       ['Homeowner notes', point.homeownerNotes]
     ]);
+
+    const knownKeys = new Set([
+      'id','x','y','roomId','name','category','brand','model','serialNumber','assetReference','protocol','networkAddress','macAddress','networkLabel',
+      'controllerReference','portReference','installationDate','warrantyDate','installerBusiness','circuitReference','firmwareVersion','physicalLocationNotes',
+      'lastTestedDate','checks','issuesActions','maintenanceNotes','homeownerNotes','installerNotes','room','floorId','floorName','roomName','type'
+    ]);
+    const extraEntries = Object.entries(point)
+      .filter(([key, value]) => !knownKeys.has(key) && value != null && typeof value !== 'object' && String(value).trim())
+      .filter(([key]) => !/(password|passcode|pin|credential|secret|token|key)/i.test(key))
+      .map(([key, value]) => [key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, char => char.toUpperCase()), value]);
+    addQuickRecordSection(host, 'Other recorded details', extraEntries);
+
     if (!host.children.length) {
       const empty = document.createElement('p'); empty.className = 'muted compact'; empty.textContent = 'No additional device details have been recorded yet.'; host.append(empty);
     }
