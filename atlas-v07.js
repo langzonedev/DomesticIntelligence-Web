@@ -110,8 +110,14 @@
   }
 
   function pointFromClient(clientX, clientY) {
-    const rect = svg.getBoundingClientRect();
     const state = currentState();
+    const matrix = svg.getScreenCTM();
+    if (matrix) {
+      const point = svg.createSVGPoint(); point.x = clientX; point.y = clientY;
+      const local = point.matrixTransform(matrix.inverse());
+      return { x: clamp(local.x, 0, state.map.width), y: clamp(local.y, 0, state.map.height) };
+    }
+    const rect = svg.getBoundingClientRect();
     return {
       x: clamp((clientX - rect.left) / rect.width * state.map.width, 0, state.map.width),
       y: clamp((clientY - rect.top) / rect.height * state.map.height, 0, state.map.height)

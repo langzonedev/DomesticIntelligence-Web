@@ -19,10 +19,11 @@
     mapEmpty: $('#mapEmpty'), mapHelp: $('#mapHelp'), selectionStatus: $('#selectionStatus'),
     layerControls: $('#layerControls'), showAll: $('#showAllLayers'), showAllInline: $('#showAllInline'),
     gridSize: $('#gridSize'), uploadPlan: $('#uploadPlanButton'), planInput: $('#planInput'), planCanvas: $('#planCanvas'),
-    planInspector: $('#planInspector'), wallInspector: $('#wallInspector'), pointInspector: $('#pointInspector'),
+    inspector: $('.inspector-card'), planInspector: $('#planInspector'), wallInspector: $('#wallInspector'), pointInspector: $('#pointInspector'),
     inspectorEmpty: $('#inspectorEmpty'), wallName: $('#wallName'), removeWall: $('#removeWall'),
     removePoint: $('#removePoint'), pointHeading: $('#pointHeading'), pointForm: $('#pointForm'),
-    checkEditor: $('#checkEditor'), ipHelp: $('#ipHelp'), removePlan: $('#removePlan'),
+    checkEditor: $('#checkEditor'), ipHelp: $('#ipHelp'), removePlan: $('#removePlan'), replacePlan: $('#replacePlan'),
+    referenceButton: $('#desktopReferenceButton'), closeInspector: $('#closeInspector'),
     planScale: $('#planScale'), planRotation: $('#planRotation'), planOpacity: $('#planOpacity'),
     planX: $('#planX'), planY: $('#planY'), handoverStatus: $('#handoverStatus'),
     handoverRooms: $('#handoverRooms'), exportPdf: $('#exportPdf'), exportCsv: $('#exportCsv'),
@@ -40,6 +41,7 @@
   let pendingReferenceWork = null;
   let saveTimer = null;
   let keyboardCursor = { x: 600, y: 400 };
+  let referenceInspectorOpen = false;
 
   function placeEditorToolbar() {
     const desktopHost = document.querySelector('.workspace-controls');
@@ -136,7 +138,7 @@
       floorRecord = null;
     }
     history = Core.createHistory(normalised, 80);
-    selection.id = normalised.selected && normalised.selected.pointId || normalised.map.points[0] && normalised.map.points[0].id || null;
+    selection.id = normalised.selected && normalised.selected.pointId || null;
     el.gridSize.value = String(normalised.map.gridSize);
     if (floorRecord) await prepareFloorPlan(floorRecord);
   }
@@ -188,7 +190,7 @@
     previewState = null;
     selection = {
       type: normalised.selected?.wallId ? 'wall' : 'point',
-      id: normalised.selected?.wallId || normalised.selected?.pointId || normalised.map.points[0]?.id || null
+      id: normalised.selected?.wallId || normalised.selected?.pointId || null
     };
     editorTool = 'select';
     wallStart = null;
@@ -322,10 +324,13 @@
     const point = current.map.layers.devices && selection.type === 'point' && current.map.points.find(item => item.id === selection.id);
     const wall = current.map.layers.walls && selection.type === 'wall' && current.map.walls.find(item => item.id === selection.id);
     const hasPlan = Boolean(current.map.layers.floorplan && current.map.floorplan && floorRecord);
-    el.planInspector.hidden = !hasPlan;
+    const showPlan = Boolean(hasPlan && referenceInspectorOpen && !point && !wall);
+    el.planInspector.hidden = !showPlan;
     el.pointInspector.hidden = !point;
     el.wallInspector.hidden = !wall;
-    el.inspectorEmpty.hidden = Boolean(point || wall || hasPlan);
+    el.inspectorEmpty.hidden = true;
+    el.inspector.dataset.context = point ? 'device' : wall ? 'wall' : showPlan ? 'reference' : 'none';
+    el.commission.dataset.hasPlan = String(hasPlan);
     if (wall) el.wallName.textContent = `Wall ${current.map.walls.indexOf(wall) + 1}`;
     if (point) {
       el.pointHeading.textContent = point.name;
@@ -382,6 +387,12 @@
   }
 
   function mapPosition(event) {
+    const matrix = el.svg.getScreenCTM();
+    if (matrix) {
+      const point = el.svg.createSVGPoint(); point.x = event.clientX; point.y = event.clientY;
+      const local = point.matrixTransform(matrix.inverse());
+      return { x: Math.max(0, Math.min(state().map.width, local.x)), y: Math.max(0, Math.min(state().map.height, local.y)) };
+    }
     const rect = el.svg.getBoundingClientRect();
     return { x: Math.max(0, Math.min(state().map.width, (event.clientX - rect.left) / rect.width * state().map.width)), y: Math.max(0, Math.min(state().map.height, (event.clientY - rect.top) / rect.height * state().map.height)) };
   }
@@ -395,7 +406,7 @@
   }
 
   function select(type, id, focusTarget) {
-    selection = { type, id }; wallStart = null; editorTool = 'select'; render();
+    selection = { type, id }; referenceInspectorOpen = false; wallStart = null; editorTool = 'select'; render();
     if (focusTarget) focusSpatial(type, id, focusTarget.endpoint);
   }
 
@@ -619,7 +630,17 @@
     });
     [el.showAll, el.showAllInline].forEach(button => button.addEventListener('click', () => { const shown = Core.showAllLayers(state()); commit({ ...shown, map: { ...shown.map, layerLocks: Object.fromEntries(Object.keys(Core.DEFAULT_LAYERS).map(key => [key, false])) } }, 'All layers shown and unlocked.'); }));
     el.gridSize.addEventListener('change', () => { if (!requireEditMode('change the editing grid')) return; commit({ ...state(), map: { ...state().map, gridSize: Number(el.gridSize.value) } }, 'Grid updated.'); });
-    el.uploadPlan.addEventListener('click', () => { if (requireEditMode('upload a reference plan')) el.planInput.click(); });
+    const openReference = () => {
+      if (!requireEditMode('configure the reference plan')) return;
+      selection = { type: null, id: null };
+      referenceInspectorOpen = Boolean(state().map.floorplan && floorRecord);
+      render();
+      if (!referenceInspectorOpen) el.planInput.click();
+    };
+    el.uploadPlan.addEventListener('click', () => { if (requireEditMode('upload a reference plan')) { selection = { type: null, id: null }; referenceInspectorOpen = true; el.planInput.click(); } });
+    el.referenceButton.addEventListener('click', openReference);
+    el.replacePlan.addEventListener('click', () => { if (requireEditMode('replace the reference plan')) { selection = { type: null, id: null }; referenceInspectorOpen = true; el.planInput.click(); } });
+    el.closeInspector.addEventListener('click', () => { referenceInspectorOpen = false; selection = { type: null, id: null }; render(); el.stage.focus(); });
     el.svg.addEventListener('pointerdown', onPointerDown); el.svg.addEventListener('pointermove', onPointerMove); el.svg.addEventListener('pointerup', onPointerUp); el.svg.addEventListener('pointercancel', onPointerCancel); el.svg.addEventListener('lostpointercapture', onPointerCancel);
     el.svg.addEventListener('keydown', onMapKeyDown); el.stage.addEventListener('keydown', onStageKeyDown);
     el.pointForm.addEventListener('submit', event => {
@@ -651,6 +672,8 @@
       if (!requireEditMode('upload a reference plan')) { el.planInput.value = ''; return; }
       const file = el.planInput.files[0]; const validation = Store.validateFloorPlan(file);
       if (!validation.ok) { flash(validation.error); el.planInput.value = ''; return; }
+      selection = { type: null, id: null };
+      referenceInspectorOpen = true;
       await trackReferenceWork((async () => {
         const previousState = state();
         try {
@@ -661,6 +684,7 @@
           await Store.saveState(nextState);
           const saved = await Store.saveFloorPlan(file, metadata);
           floorRecord = { ...(saved.metadata || metadata), name: file.name, type: validation.type, blob: file }; planSource = decoded;
+          referenceInspectorOpen = true;
           commit(nextState, saved.warning || 'Floor plan stored locally.');
           cancelScheduledSave();
         } catch (error) {

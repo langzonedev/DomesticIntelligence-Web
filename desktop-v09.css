@@ -1,0 +1,178 @@
+/* Domestic Intelligence v0.9 desktop workspace — atlas-first and contextual. */
+.desktop-editor-shell{display:contents}
+.inspector-dismiss{display:none}
+.device-point text{pointer-events:visiblePainted}
+
+@media (min-width:1101px){
+  #commissionView:not([hidden]) .desktop-editor-shell{
+    display:grid;
+    grid-template-columns:104px minmax(0,1fr);
+    flex:1 1 0;
+    min-height:0;
+    gap:8px;
+    overflow:hidden;
+  }
+
+  #commissionView:not([hidden]) .workspace-controls{
+    grid-column:1;
+    grid-row:1;
+    display:flex;
+    min-width:0;
+    min-height:0;
+    margin:0;
+    padding:4px;
+    flex-direction:column;
+    gap:5px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    border:1px solid var(--di-border);
+    border-radius:14px;
+    background:var(--di-surface);
+    box-shadow:0 10px 28px rgb(19 7 47 / 8%);
+    scrollbar-width:thin;
+  }
+
+  #commissionView:not([hidden]) .editor-mode-bar,
+  #commissionView:not([hidden]) .atlas-commandbar,
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar{
+    display:flex;
+    width:100%;
+    min-width:0;
+    margin:0;
+    padding:0;
+    flex-direction:column;
+    flex-wrap:nowrap;
+    gap:4px;
+    overflow:visible;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    box-shadow:none;
+  }
+
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar[hidden]{display:none}
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar:not([hidden]){
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar [data-tool="select"],
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar #atlasEditLayersButton,
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar #editFitStorey,
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar .grid-control{display:none}
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar #uploadPlanButton,
+  #commissionView:not([hidden]) .workspace-controls>.edit-toolbar #desktopReferenceButton{grid-column:1/-1}
+  #commissionView:not([hidden]) .editor-mode-bar .segmented,
+  #commissionView:not([hidden]) .atlas-command-group,
+  #commissionView:not([hidden]) .history-actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    width:100%;
+    padding:0;
+    gap:4px;
+    background:transparent;
+  }
+
+  #commissionView:not([hidden]) .atlas-command-group [id="atlasLayersButton"],
+  #commissionView:not([hidden]) .atlas-command-group [id="zoomLevel"],
+  #commissionView:not([hidden]) .atlas-command-group [id="fitStorey"]{grid-column:1/-1}
+
+  #commissionView:not([hidden]) .workspace-controls button,
+  #commissionView:not([hidden]) .grid-control select{
+    width:100%;
+    min-width:0;
+    min-height:46px;
+    padding:4px 2px;
+    border-radius:10px;
+    font-size:.7rem;
+    line-height:1.05;
+    text-align:center;
+    white-space:normal;
+  }
+
+  #commissionView:not([hidden]) .editor-mode-bar .segmented button{min-height:46px}
+  #commissionView:not([hidden]) .mode-hint,
+  #commissionView:not([hidden]) .storey-context,
+  #commissionView:not([hidden]) #resetView{display:none}
+  #commissionView:not([hidden]) .atlas-commandbar output{
+    display:grid;
+    min-width:0;
+    width:100%;
+    min-height:30px;
+    place-items:center;
+    font-size:.72rem;
+  }
+  #commissionView:not([hidden]) .grid-control{
+    display:grid;
+    width:100%;
+    gap:2px;
+    text-align:center;
+    font-size:.6rem;
+  }
+  #commissionView:not([hidden]) .grid-control select{min-height:44px;padding:2px}
+  #commissionView[data-has-plan="true"] #uploadPlanButton,
+  #commissionView:not([data-has-plan="true"]) #desktopReferenceButton{display:none}
+  body:has(.map-stage:not(.editing)) #commissionView .history-actions{display:none}
+
+  #commissionView:not([hidden]) .editor-grid{
+    grid-column:2;
+    grid-row:1;
+    display:grid;
+    height:100%;
+    min-height:0;
+    grid-template-columns:minmax(0,1fr) minmax(360px,400px);
+    gap:8px;
+    overflow:hidden;
+  }
+  #commissionView:not([hidden]) .editor-grid:has(.inspector-card[data-context="none"]){grid-template-columns:minmax(0,1fr)}
+  #commissionView:not([hidden]) .tools-rail{display:none}
+  #commissionView:not([hidden]) .map-card{
+    width:100%;
+    height:100%;
+    padding:6px;
+    border-radius:14px;
+  }
+  #commissionView:not([hidden]) .map-stage{
+    width:100%;
+    max-width:none;
+    height:100%;
+    max-height:none;
+    min-height:0;
+    aspect-ratio:auto;
+    border-radius:10px;
+    background-image:none;
+  }
+  #commissionView:not([hidden]) .map-stage canvas{object-fit:contain}
+
+  #commissionView:not([hidden]) .inspector-card{
+    position:relative;
+    width:min(400px,31vw);
+    height:100%;
+    max-height:none;
+    padding:12px 14px 18px;
+    border-radius:14px;
+    overscroll-behavior:contain;
+  }
+  #commissionView:not([hidden]) .inspector-card[data-context="none"]{display:none}
+  #commissionView:not([hidden]) .inspector-dismiss{
+    display:inline-grid;
+    position:sticky;
+    z-index:4;
+    top:0;
+    float:right;
+    margin:0 0 6px 8px;
+    place-items:center;
+    background:var(--di-subtle);
+  }
+  #commissionView:not([hidden]) .inspector-heading{clear:both}
+  #commissionView:not([hidden]) .device-snapshot{position:sticky;z-index:2;top:0}
+}
+
+@media (min-width:1500px){
+  #commissionView:not([hidden]) .desktop-editor-shell{grid-template-columns:110px minmax(0,1fr)}
+  #commissionView:not([hidden]) .editor-grid{grid-template-columns:minmax(0,1fr) minmax(380px,430px)}
+  #commissionView:not([hidden]) .inspector-card{width:min(430px,28vw)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  #commissionView .inspector-card{scroll-behavior:auto}
+}

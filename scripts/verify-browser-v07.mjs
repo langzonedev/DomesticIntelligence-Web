@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-22')),
-    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-22'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-23')),
+    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-23'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
@@ -108,6 +108,10 @@ try {
   await page.setViewportSize({ width:1440,height:900 }); await page.goto(origin,{waitUntil:'networkidle'});
   const viewCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(), heading=document.querySelector('.map-card>.section-heading'); return { stage:{x:stage.x,y:stage.y,width:stage.width,height:stage.height}, headingVisible:Boolean(heading.getClientRects().length) }; });
   assert(!viewCanvas.headingVisible, `Desktop View left chrome across the atlas: ${JSON.stringify(viewCanvas)}`);
+  const desktopLayout = await page.evaluate(() => { const dock=document.querySelector('.workspace-controls').getBoundingClientRect(), tools=document.querySelector('.tools-rail'), inspector=document.querySelector('.inspector-card'); return { dock:{width:dock.width,height:dock.height},toolsVisible:Boolean(tools.getClientRects().length),inspectorContext:inspector.dataset.context }; });
+  assert(desktopLayout.dock.width <= 112 && !desktopLayout.toolsVisible && viewCanvas.stage.width >= 760, `Desktop atlas was not given priority over permanent controls: ${JSON.stringify({desktopLayout,viewCanvas})}`);
+  await page.locator('#closeInspector').click(); const expandedCanvasWidth = await page.locator('#mapStage').evaluate(node=>node.getBoundingClientRect().width);
+  assert(expandedCanvasWidth > viewCanvas.stage.width + 250 && await page.locator('.inspector-card').isHidden(), `Closing desktop context did not return space to the atlas: ${JSON.stringify({before:viewCanvas.stage.width,after:expandedCanvasWidth})}`);
   const beforeZoom = await page.locator('#zoomLevel').textContent(); await page.locator('#zoomIn').click(); const afterZoom = await page.locator('#zoomLevel').textContent();
   assert(beforeZoom !== afterZoom, 'Zoom button did not change the persisted viewport');
   const wall = page.locator('#wallLayer .wall-hit').first(); await wall.click({ force:true });
@@ -116,7 +120,7 @@ try {
   const afterViewWall = await page.evaluate(() => JSON.stringify(window.DIAppBridge.getState().map.walls[0]));
   assert(beforeWall === afterViewWall, 'View mode allowed an accidental wall edit');
   await page.locator('[data-editor-mode="edit"]').click();
-  const editCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(), toolbar=document.querySelector('#editToolbar').getBoundingClientRect(), card=document.querySelector('.map-card').getBoundingClientRect(); return {x:stage.x,y:stage.y,width:stage.width,height:stage.height,zoom:document.querySelector('#zoomLevel').textContent,toolbarOverlapsMap:toolbar.bottom>card.top&&toolbar.top<card.bottom}; });
+  const editCanvas = await page.evaluate(() => { const stage=document.querySelector('#mapStage').getBoundingClientRect(), toolbar=document.querySelector('#editToolbar').getBoundingClientRect(), card=document.querySelector('.map-card').getBoundingClientRect(); const toolbarOverlapsMap=toolbar.left<card.right&&toolbar.right>card.left&&toolbar.top<card.bottom&&toolbar.bottom>card.top; return {x:stage.x,y:stage.y,width:stage.width,height:stage.height,zoom:document.querySelector('#zoomLevel').textContent,toolbarOverlapsMap}; });
   assert(Math.abs(editCanvas.width-viewCanvas.stage.width)<1 && Math.abs(editCanvas.height-viewCanvas.stage.height)<1 && editCanvas.zoom==='100%', `View/Edit atlas space diverged or did not fit the storey: ${JSON.stringify({view:viewCanvas.stage,edit:editCanvas})}`);
   assert(!editCanvas.toolbarOverlapsMap, `Desktop Edit toolbar still overlaps the atlas: ${JSON.stringify(editCanvas)}`);
   const topWall = await page.evaluate(() => {
@@ -160,6 +164,7 @@ try {
   assert(await planPage.evaluate(()=>JSON.stringify(window.DIAppBridge.getState().map)) === viewSafeMap,'View mode allowed an inspector or history spatial mutation');
   assert(await planPage.evaluate(()=>['planScale','fitReference','startCalibration','removePlan','applyWallCoordinates','removeWall','removePoint'].every(id=>document.getElementById(id).disabled)),'View-mode spatial mutation controls were not disabled');
   await planPage.locator('[data-editor-mode="edit"]').click();
+  await planPage.locator('#desktopReferenceButton').click();
   await planPage.locator('.inspector-card').evaluate(element=>{ element.scrollTop=element.scrollHeight; }); await planPage.locator('.calibration-panel summary').click(); await planPage.locator('#startCalibration').click(); const calibrationBox = await planPage.locator('#mapStage').boundingBox();
   if (calibrationBox) { for (const [pointerId,fraction] of [[81,.3],[82,.7]]) { const event={clientX:calibrationBox.x+calibrationBox.width*fraction,clientY:calibrationBox.y+calibrationBox.height*.35,pointerId,pointerType:'mouse',button:0,bubbles:true,cancelable:true}; await planPage.locator('#mapStage').dispatchEvent('pointerdown',event); await planPage.locator('#mapStage').dispatchEvent('pointerup',event); } }
   await planPage.locator('#calibrationDistance').fill('4.2'); await planPage.locator('#applyCalibration').click();

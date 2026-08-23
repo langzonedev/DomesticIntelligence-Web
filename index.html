@@ -11,25 +11,26 @@
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       let releaseRefreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-22') === 'done') return;
+        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-23') === 'done') return;
         releaseRefreshing = true;
-        sessionStorage.setItem('di-release-refresh-07-22', 'done');
+        sessionStorage.setItem('di-release-refresh-07-23', 'done');
         location.reload();
       });
     }
   </script>
-  <link rel="manifest" href="manifest.webmanifest?v=07-22">
+  <link rel="manifest" href="manifest.webmanifest?v=07-23">
   <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="theme.css?v=07-22">
-  <link rel="stylesheet" href="theme-v07.css?v=07-22">
-  <link rel="stylesheet" href="v2.css?v=07-22">
-  <link rel="stylesheet" href="theme-bridge.css?v=07-22">
-  <link rel="stylesheet" href="mobile-v03.css?v=07-22">
-  <link rel="stylesheet" href="mobile-v06.css?v=07-22">
-  <link rel="stylesheet" href="ui-kit.css?v=07-22">
-  <link rel="stylesheet" href="atlas-v07.css?v=07-22">
-  <link rel="stylesheet" href="mobile-v08.css?v=07-22">
+  <link rel="stylesheet" href="theme.css?v=07-23">
+  <link rel="stylesheet" href="theme-v07.css?v=07-23">
+  <link rel="stylesheet" href="v2.css?v=07-23">
+  <link rel="stylesheet" href="theme-bridge.css?v=07-23">
+  <link rel="stylesheet" href="mobile-v03.css?v=07-23">
+  <link rel="stylesheet" href="mobile-v06.css?v=07-23">
+  <link rel="stylesheet" href="ui-kit.css?v=07-23">
+  <link rel="stylesheet" href="atlas-v07.css?v=07-23">
+  <link rel="stylesheet" href="mobile-v08.css?v=07-23">
+  <link rel="stylesheet" href="desktop-v09.css?v=07-23">
 </head>
 <body>
   <div class="app-shell">
@@ -60,6 +61,7 @@
           <div class="readiness-card" id="homeReadiness" aria-live="polite"></div>
         </div>
 
+        <div class="desktop-editor-shell">
         <div class="workspace-controls">
           <div class="editor-mode-bar">
             <div class="segmented" role="group" aria-label="Map interaction mode">
@@ -107,6 +109,7 @@
               <button type="button" class="tool-button" data-tool="wall">+ Wall</button>
               <button type="button" class="tool-button" data-tool="point">+ Device</button>
               <button id="uploadPlanButton" type="button" class="tool-button">Upload plan</button>
+              <button id="desktopReferenceButton" type="button" class="tool-button">Reference</button>
               <button type="button" class="tool-button atlas-layers-trigger" id="atlasEditLayersButton" aria-haspopup="dialog" aria-controls="atlasLayersDialog"><span aria-hidden="true">▱</span> Layers</button>
               <button id="editFitStorey" type="button" class="tool-button">Fit storey</button>
               <input id="planInput" class="visually-hidden-file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" aria-label="Choose a floor-plan file">
@@ -125,10 +128,12 @@
             <p class="map-help" id="mapHelp">Select a device point to inspect details. Wheel or pinch to zoom; use Pan to move the atlas.</p>
           </section>
 
-          <aside class="inspector-card" aria-label="Map inspector">
+          <aside class="inspector-card" aria-label="Map inspector" data-context="none">
+            <button id="closeInspector" class="icon-action inspector-dismiss" type="button" aria-label="Close inspector" title="Close inspector">×</button>
             <section id="planInspector" class="inspector-section" hidden>
               <div class="inspector-heading"><div><p class="eyebrow">Reference background</p><h3>Floor plan</h3></div><button class="danger-text" id="removePlan" type="button">Remove</button></div>
               <label class="layer-lock-row"><input id="planLocked" type="checkbox"> Lock reference against editing</label>
+              <button id="replacePlan" type="button" class="quiet-action full">Replace reference plan</button>
               <button id="fitReference" type="button" class="quiet-action full">Fit reference to storey</button>
               <label>Scale <input id="planScale" type="range" min="25" max="250" value="100"></label>
               <label>Rotation <input id="planRotation" type="range" min="-180" max="180" value="0"></label>
@@ -190,6 +195,7 @@
             <div id="inspectorEmpty" class="inspector-empty"><strong>Select an item</strong><p>Choose a device or wall on the plan. Edit mode unlocks spatial changes.</p></div>
           </aside>
         </div>
+        </div>
       </section>
 
       <section id="handoverView" hidden>
@@ -227,16 +233,16 @@
     <button id="atlasLayersShowAll" type="button" class="quiet-action full">Show all and unlock</button>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="editor-core.js?v=07-22"></script>
-  <script src="property-model.js?v=07-22"></script>
-  <script src="storage.js?v=07-22"></script>
-  <script src="exporters.js?v=07-22"></script>
-  <script src="ui-icons.js?v=07-22"></script>
-  <script src="ui-kit.js?v=07-22"></script>
-  <script src="state-guard-v04.js?v=07-22"></script>
-  <script src="mobile-v03.js?v=07-22"></script>
-  <script src="app-v2.js?v=07-22"></script>
-  <script src="mobile-v05.js?v=07-22"></script>
-  <script src="atlas-v07.js?v=07-22"></script>
+  <script src="editor-core.js?v=07-23"></script>
+  <script src="property-model.js?v=07-23"></script>
+  <script src="storage.js?v=07-23"></script>
+  <script src="exporters.js?v=07-23"></script>
+  <script src="ui-icons.js?v=07-23"></script>
+  <script src="ui-kit.js?v=07-23"></script>
+  <script src="state-guard-v04.js?v=07-23"></script>
+  <script src="mobile-v03.js?v=07-23"></script>
+  <script src="app-v2.js?v=07-23"></script>
+  <script src="mobile-v05.js?v=07-23"></script>
+  <script src="atlas-v07.js?v=07-23"></script>
 </body>
 </html>
