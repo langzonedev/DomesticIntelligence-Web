@@ -372,7 +372,7 @@
 
     const backgroundSelectors = [
       '.mobile-top-appbar', '.mobile-bottom-nav', '#floorControls', '.editor-mode-bar',
-      '.atlas-commandbar', '.map-card', '.project-heading', '#mobileDevicesView', '#mobileMoreView', '#handoverView'
+      '.atlas-commandbar', '.map-card', '.project-heading', '#mobileDeviceSummary', '#mobileDevicesView', '#mobileMoreView', '#handoverView'
     ];
 
     function releaseDetail(options = {}) {

@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-24')),
-    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-24'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-25')),
+    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-25'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
@@ -270,6 +270,7 @@ try {
   await page.locator('#openDeviceRecord').click();
   assert(await page.locator('body').evaluate(body=>body.classList.contains('mobile-point-detail')), 'Phone summary did not expand to full details');
   assert(await page.locator('.inspector-card').getAttribute('role') === 'dialog', 'Phone device details are not exposed as a dialog');
+  const summaryPointId = await page.locator('#mobileDeviceSummary').getAttribute('data-point-id');
   const detailPriority = await page.evaluate(()=>({ navHeight:document.querySelector('.mobile-point-nav').getBoundingClientRect().height, first:[...document.querySelectorAll('#pointForm>details')].sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top)[0]?.querySelector('summary')?.textContent, saveVisible:Boolean(document.querySelector('#mobilePointSave')?.getClientRects().length) }));
   assert(detailPriority.navHeight >= 44 && detailPriority.first === 'Commissioning and lifecycle' && detailPriority.saveVisible, `Phone device record did not prioritise commissioning with persistent navigation: ${JSON.stringify(detailPriority)}`);
   const macField = page.locator('#pointForm [name="macAddress"]'); await macField.evaluate(element=>{ element.closest('details').open=true; }); await macField.fill('not-a-mac'); await page.locator('#pointForm button[type="submit"]').click();
@@ -279,6 +280,10 @@ try {
   assert(await page.evaluate(()=>document.querySelector('.inspector-card').contains(document.activeElement)),'Phone modal focus escaped to the atlas background');
   await page.keyboard.press('Escape');
   assert(!(await page.locator('body').evaluate(body=>body.classList.contains('mobile-point-detail'))), 'Escape did not close phone device details');
+  await page.waitForTimeout(80);
+  assert(await page.locator('#mobileDeviceSummary').isVisible() && await page.locator('#mobileDeviceSummary').getAttribute('data-point-id') === summaryPointId && await page.locator('#mobileDeviceSummary').getAttribute('data-expanded') === 'false', 'Closing full details did not restore the same collapsed device summary');
+  assert(await page.evaluate(()=>document.activeElement?.id === 'openDeviceRecord'), 'Closing full details did not return focus to the restored device summary');
+  await page.locator('#closeDeviceSummary').click();
   await page.locator('[data-mobile-section="devices"]').click(); await page.locator('#mobileDeviceSearch').fill('no matching device');
   assert(await page.locator('#mobileDeviceSearchEmpty').isVisible() && await page.locator('.mobile-device-row:visible').count() === 0,'Phone device search did not provide a clear empty result');
   await page.locator('#mobileDeviceSearch').fill(''); assert(await page.locator('.mobile-device-row:visible').count() > 0,'Clearing phone device search did not restore the inventory');

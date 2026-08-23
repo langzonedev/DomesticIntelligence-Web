@@ -592,9 +592,11 @@
   }
 
   function openSummaryRecord() {
-    const pointId = $('#mobileDeviceSummary')?.dataset.pointId; const focus = summaryReturnFocus; closeDeviceSummary({ restoreFocus:false });
+    const sheet = $('#mobileDeviceSummary');
+    const pointId = sheet?.dataset.pointId;
+    if (sheet) setDeviceSummaryExpanded(false);
     if (pointId) bridge().selectSpatial('point', pointId);
-    window.DIMobileDetail?.open({ returnFocus: focus || stage, focusSelector:'#mobilePointClose' });
+    window.DIMobileDetail?.open({ returnFocus: $('#openDeviceRecord') || sheet || stage, focusSelector:'#mobilePointClose' });
     history.pushState({ mobileSection:'plan', overlay:'point' }, '', '#plan-device');
   }
 
@@ -702,8 +704,19 @@
     window.addEventListener('di:mobile-point-summary', event => openDeviceSummary(event.detail));
     $('#closeDeviceSummary')?.addEventListener('click', () => closeDeviceSummary());
     $('#openDeviceRecord')?.addEventListener('click', openSummaryRecord);
-    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#mobileDeviceSummary')?.hidden) { event.preventDefault(); closeDeviceSummary(); } });
-    window.addEventListener('popstate', () => closeDeviceSummary({ restoreFocus:false }));
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || event.defaultPrevented || document.body.classList.contains('mobile-point-detail') || $('#mobileDeviceSummary')?.hidden) return;
+      event.preventDefault(); closeDeviceSummary();
+    });
+    window.addEventListener('popstate', event => {
+      const sheet = $('#mobileDeviceSummary');
+      const destination = event.state?.mobileSection || location.hash.slice(1) || 'plan';
+      if (sheet && !sheet.hidden && destination === 'plan') {
+        requestAnimationFrame(() => $('#openDeviceRecord')?.focus());
+        return;
+      }
+      closeDeviceSummary({ restoreFocus:false });
+    });
     window.addEventListener('resize', () => {
       syncResponsiveMode(); const state = currentState(); if (!state || pan || pinch) return;
       const changed = syncCameraOrientation(state); applyViewport(displayViewport(state, cameraOrientation, changed)); bridge()?.redrawPlan?.();
