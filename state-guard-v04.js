@@ -221,6 +221,105 @@
     syncTrigger();
   }
 
+  function installDeviceDraftPersistence() {
+    const form = document.querySelector('#pointForm');
+    if (!form || form.dataset.diDraftBound === 'true') return;
+    form.dataset.diDraftBound = 'true';
+
+    let draftPointId = null;
+    let draftFields = null;
+    let draftChecks = null;
+    let restoring = false;
+
+    const mobile = () => matchMedia('(max-width: 760px), (max-height: 500px) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) and (max-width: 950px)').matches;
+    const currentPointId = () => {
+      const selection = window.DIAppBridge?.getSelection?.();
+      return selection?.type === 'point' ? selection.id : null;
+    };
+
+    const capture = () => {
+      if (restoring || !mobile() || !window.DIMobileDetail?.isOpen?.()) return;
+      const pointId = currentPointId();
+      if (!pointId) return;
+      draftPointId = pointId;
+      draftFields = {};
+      form.querySelectorAll('input[name],select[name],textarea[name]').forEach(control => {
+        if (control.type === 'checkbox' || control.type === 'radio') draftFields[control.name] = Boolean(control.checked);
+        else draftFields[control.name] = control.value;
+      });
+      draftChecks = [...document.querySelectorAll('#checkEditor [data-check-index]')].map(control => ({ index: control.dataset.checkIndex, value: control.value }));
+    };
+
+    const syncEnhancedControl = control => {
+      if (!control) return;
+      const sibling = control.nextElementSibling;
+      if (sibling?.classList.contains('searchable-choice-picker')) {
+        const trigger = sibling.querySelector('.searchable-choice-trigger');
+        if (trigger) trigger.textContent = control.selectedOptions?.[0]?.textContent || 'Choose';
+        sibling.querySelectorAll('[role="option"]').forEach(option => option.setAttribute('aria-selected', String(option.dataset.value === control.value)));
+      } else if (sibling?.classList.contains('inline-choice-group')) {
+        sibling.querySelectorAll('[role="radio"]').forEach(option => {
+          const selected = option.dataset.value === control.value;
+          option.setAttribute('aria-checked', String(selected));
+          option.classList.toggle('selected', selected);
+          option.tabIndex = selected ? 0 : -1;
+        });
+      }
+    };
+
+    const restore = () => {
+      if (!mobile() || !window.DIMobileDetail?.isOpen?.()) return;
+      const pointId = currentPointId();
+      if (!pointId || pointId !== draftPointId || !draftFields) return;
+      restoring = true;
+      try {
+        Object.entries(draftFields).forEach(([name, value]) => {
+          const control = form.elements[name];
+          if (!control) return;
+          if (control.type === 'checkbox' || control.type === 'radio') control.checked = Boolean(value);
+          else control.value = value;
+          syncEnhancedControl(control);
+        });
+        (draftChecks || []).forEach(({ index, value }) => {
+          const control = document.querySelector(`#checkEditor [data-check-index="${CSS.escape(String(index))}"]`);
+          if (control) control.value = value;
+        });
+        const name = form.elements.name?.value;
+        const heading = document.querySelector('#pointHeading');
+        const navTitle = document.querySelector('#mobilePointNavTitle');
+        if (name && heading) heading.textContent = name;
+        if (name && navTitle) navTitle.textContent = name;
+      } finally {
+        restoring = false;
+      }
+    };
+
+    form.addEventListener('input', capture, true);
+    form.addEventListener('change', capture, true);
+    form.addEventListener('focusout', capture, true);
+    form.addEventListener('submit', capture, true);
+
+    window.addEventListener('di:render', () => {
+      if (!window.DIMobileDetail?.isOpen?.()) {
+        draftPointId = null;
+        draftFields = null;
+        draftChecks = null;
+        return;
+      }
+      queueMicrotask(restore);
+    });
+
+    form.addEventListener('submit', () => {
+      setTimeout(() => {
+        if (form.querySelector('[aria-invalid="true"]')) return;
+        if (window.DIMobileDetail?.isOpen?.()) return;
+        draftPointId = null;
+        draftFields = null;
+        draftChecks = null;
+      }, 0);
+    });
+  }
+
   function installDeviceSaveAndClose() {
     const form = document.querySelector('#pointForm');
     if (!form || form.dataset.diSaveCloseBound === 'true') return;
@@ -296,6 +395,7 @@
   window.addEventListener('di:app-state-ready', () => {
     installCompactMobileMapControls();
     setTimeout(installConsistentRoomPicker, 0);
+    setTimeout(installDeviceDraftPersistence, 0);
     setTimeout(installDeviceSaveAndClose, 0);
     setTimeout(installMobileObjectDelete, 0);
   }, { once: true });
