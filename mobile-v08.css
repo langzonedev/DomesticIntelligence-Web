@@ -1,0 +1,123 @@
+/* Domestic Intelligence v0.8 mobile shell — atlas-first, touch-first, low-chrome. */
+.mobile-map-controls-toggle,.mobile-quick-edit,.mobile-plan-controls-sheet{display:none}
+
+@media (max-width:760px){
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+
+  .mobile-bottom-nav{min-height:64px;padding:3px 8px calc(3px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--di-surface) 97%,transparent)}
+  .mobile-bottom-nav button{min-height:56px;border-radius:12px;outline-offset:-3px}
+  .mobile-bottom-nav button:focus:not(:focus-visible){outline:none!important;box-shadow:none!important}
+  .mobile-bottom-nav button.active{color:var(--di-focus)!important;background:transparent!important;box-shadow:none!important}
+  .mobile-bottom-nav button.active .mobile-nav-icon{width:48px;height:28px;background:color-mix(in srgb,var(--di-accent) 22%,transparent);box-shadow:none}
+  .mobile-nav-icon{width:48px;height:28px}
+  .mobile-nav-icon svg{width:21px;height:21px}
+  .mobile-nav-label{margin-top:1px;font-size:.68rem;letter-spacing:.01em}
+
+  body.mobile-section-plan .app-shell{height:calc(100dvh - 64px - env(safe-area-inset-bottom));min-height:0}
+  body.mobile-section-plan .mobile-top-appbar{display:none!important}
+  body.mobile-section-plan .workspace-controls{display:grid!important;grid-template-columns:minmax(0,1fr) 64px;gap:6px;min-height:54px;padding:5px 8px;margin:0;border-bottom:1px solid var(--di-border);background:color-mix(in srgb,var(--di-surface) 96%,transparent);backdrop-filter:blur(14px)}
+  .mobile-map-controls-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;min-height:44px;padding:5px 10px;border:0;border-radius:12px;background:var(--di-subtle);color:var(--di-text);font:inherit;text-align:left}
+  .mobile-map-controls-toggle>span:first-child{display:block;min-width:0}
+  .mobile-map-controls-toggle strong,.mobile-map-controls-toggle small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mobile-map-controls-toggle strong{font-size:.9rem;line-height:1.1}
+  .mobile-map-controls-toggle small{margin-top:2px;color:var(--di-muted);font-size:.7rem;font-weight:700}
+  .mobile-map-controls-chevron{color:var(--di-muted);font-size:1rem}
+  .mobile-quick-edit{display:inline-flex!important;align-items:center;justify-content:center;min-width:64px;min-height:44px;padding:6px 10px;border-radius:12px;font-size:.8rem}
+
+  .mobile-plan-controls-sheet[open]{display:block;position:fixed;z-index:1500;inset:auto 0 0;width:100%;max-width:none;max-height:min(74dvh,38rem);margin:auto 0 0;padding:8px 12px calc(14px + env(safe-area-inset-bottom));overflow:auto;border:1px solid var(--di-border-strong);border-radius:22px 22px 0 0;color:var(--di-text);background:var(--di-surface);box-shadow:0 -24px 70px rgb(5 3 12 / 45%);overscroll-behavior:contain}
+  .mobile-plan-controls-sheet::backdrop{background:rgb(8 4 18 / 58%);backdrop-filter:blur(3px)}
+  .mobile-plan-sheet-heading{display:flex;position:sticky;z-index:2;top:-8px;align-items:center;justify-content:space-between;gap:12px;margin:0 -4px 6px;padding:10px 4px 8px;background:var(--di-surface)}
+  .mobile-plan-sheet-heading .eyebrow{margin:0}
+  .mobile-plan-sheet-heading h2{margin:1px 0 0;font-size:1.25rem}
+  #mobilePlanControlsClose{width:44px;min-width:44px;height:44px;border-radius:12px}
+  .mobile-plan-controls-body{display:grid;gap:8px}
+  .mobile-plan-controls-body .floor-controls.mobile-plan-floors{display:flex!important;align-items:center;gap:6px;margin:0!important;padding:0 0 8px;overflow:hidden;border-bottom:1px solid var(--di-border)}
+  .mobile-plan-controls-body .floor-choice-group{display:flex;flex:1 1 auto;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none}
+  .mobile-plan-controls-body .editor-mode-bar{display:flex!important;min-height:50px;margin:0!important;padding:3px;border:0;border-radius:14px;background:var(--di-subtle);box-shadow:none}
+  .mobile-plan-controls-body .editor-mode-bar .segmented{width:100%}
+  .mobile-plan-controls-body .editor-mode-bar .segmented button{min-height:44px;border-radius:11px}
+  .mobile-plan-controls-body .atlas-commandbar{display:flex!important;min-height:50px;margin:0;padding:3px;border:0;border-radius:14px;background:var(--di-subtle);box-shadow:none}
+  .mobile-plan-controls-body .atlas-commandbar .atlas-command-group:first-child{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1;gap:4px}
+  .mobile-plan-controls-body .atlas-commandbar .atlas-command-group:last-of-type{display:flex}
+  .mobile-plan-controls-body .atlas-commandbar button{min-height:44px;border-radius:11px}
+  .mobile-plan-controls-body .atlas-commandbar #fitStorey{min-width:72px}
+  .mobile-plan-controls-body .storey-context{display:none}
+
+  body.mobile-section-plan .map-card>.section-heading{display:none!important}
+  body.mobile-section-plan .map-stage{border-radius:0}
+  body.mobile-section-plan .editor-grid{min-height:0}
+
+  .mobile-device-summary:not([hidden]){right:10px;bottom:calc(70px + env(safe-area-inset-bottom));left:10px;border-radius:20px;padding:6px 14px 14px}
+  .mobile-device-summary .summary-grabber{min-height:24px!important}
+  .mobile-device-summary .summary-grabber::before{content:'More details'!important;font-size:.7rem!important}
+  .mobile-device-summary[data-expanded="true"] .summary-grabber::before{content:'Collapse details'!important}
+  #closeDeviceSummary{width:44px;min-width:44px;height:44px;border-radius:12px}
+
+  .mobile-devices-view{padding:10px 12px 18px}
+  .mobile-page-heading{padding:2px 2px 10px}
+  .mobile-page-heading h1{font-size:1.55rem}
+  .mobile-page-heading>p:last-child{font-size:.88rem;line-height:1.35}
+  .mobile-device-search{display:block;margin:0 0 14px}
+  .mobile-device-search input{width:100%;min-height:46px;padding:10px 14px;border-radius:14px;background:var(--di-field)}
+  .mobile-device-group{margin-bottom:14px}
+  .mobile-device-group-heading{margin-bottom:6px;padding-inline:2px}
+  .mobile-device-group-heading h2{font-size:1rem}
+  .mobile-device-group-heading span{font-size:.78rem}
+  .mobile-device-list{border-radius:16px}
+  .mobile-device-row{display:grid;grid-template-columns:minmax(0,1fr) auto 18px;gap:8px;min-height:64px;padding:10px 13px}
+  .mobile-device-primary small{font-size:.78rem}
+  .mobile-device-state{padding:4px 7px;border-radius:999px;background:var(--di-subtle);color:var(--di-muted);font-size:.68rem;font-weight:800;white-space:nowrap}
+  .mobile-device-chevron{font-size:1.4rem}
+
+  .mobile-section-handover #handoverView{padding:10px 12px 18px}
+  .mobile-section-handover .handover-hero{margin:0 0 12px;padding:16px;border-radius:18px}
+  .mobile-section-handover .handover-hero h1{font-size:1.6rem}
+  .mobile-section-handover .handover-hero>.muted{margin:4px 0 12px;font-size:.9rem;line-height:1.4}
+  .mobile-section-handover .export-actions{gap:7px}
+  .mobile-section-handover .export-actions button{min-height:48px;border-radius:13px}
+  .mobile-section-handover .handover-grid{gap:10px}
+  .mobile-section-handover .room-handover{border-radius:18px}
+
+  .mobile-more-view{padding:10px 12px 18px}
+  .mobile-more-card{margin-bottom:12px;padding:16px;border-radius:18px}
+  .mobile-more-card h2{margin:1px 0 10px;font-size:1.25rem}
+  .mobile-more-view .address-editor>label{margin-bottom:6px}
+  .mobile-more-view .address-editor-row{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+  .mobile-more-view .address-editor-row input{width:100%;min-height:48px}
+  .mobile-more-view .address-editor-row button{width:100%;min-height:46px}
+  .mobile-more-view .prototype-note{font-size:.82rem;line-height:1.4}
+  .mobile-settings-row{padding:10px 0}
+  .mobile-settings-copy small{font-size:.8rem;line-height:1.35}
+
+  body.mobile-floor-edit .mobile-plan-controls-sheet,
+  body.mobile-floor-edit .mobile-map-controls-toggle,
+  body.mobile-floor-edit .mobile-quick-edit{display:none!important}
+  .mobile-floor-edit .map-card{padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom)!important}
+  .mobile-floor-edit .mobile-edit-session-bar{min-height:52px;padding:4px 0 6px}
+  .mobile-floor-edit .mobile-edit-copy strong{font-size:.92rem}
+  .mobile-floor-edit .mobile-edit-actions{gap:4px!important}
+  .mobile-floor-edit .mobile-edit-actions button{min-height:44px;padding-inline:8px;border-radius:11px;font-size:.76rem}
+  .mobile-floor-edit .edit-toolbar{gap:4px;padding-bottom:5px}
+  .mobile-floor-edit .edit-toolbar .tool-button{min-height:46px;border-radius:11px;font-size:.68rem}
+  .mobile-floor-edit .map-stage{width:min(100%,calc((100dvh - 108px)*2/3))!important;max-height:calc(100dvh - 108px)!important;border-radius:10px}
+  .mobile-floor-edit .map-help{display:none!important}
+
+  .atlas-layers-dialog{max-height:72dvh;padding:10px 12px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0}
+  .atlas-sheet-heading{align-items:center;margin-bottom:2px}
+  .atlas-sheet-heading h2{font-size:1.25rem}
+  #atlasLayersClose{width:44px;min-width:44px;height:44px;border-radius:12px}
+  .atlas-sheet-layer-list{gap:4px;margin:8px 0}
+  .atlas-sheet-layer-row{grid-template-columns:40px minmax(0,1fr) 68px;min-height:50px;border-radius:12px}
+  .atlas-sheet-layer-row>[data-sheet-lock]{width:auto!important;min-width:64px!important;padding-inline:7px;border-radius:10px;font-size:.72rem;font-weight:800}
+}
+
+@media (max-width:340px){
+  body.mobile-section-plan .workspace-controls{grid-template-columns:minmax(0,1fr) 58px}
+  .mobile-quick-edit{min-width:58px;padding-inline:7px}
+  .mobile-device-state{display:none}
+  .mobile-device-row{grid-template-columns:minmax(0,1fr) 18px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .mobile-plan-controls-sheet,.mobile-device-summary{scroll-behavior:auto}
+}

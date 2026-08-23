@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-21')),
-    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-21'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-22')),
+    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-22'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
@@ -191,12 +191,14 @@ try {
 
   const transactionContext = await browser.newContext({ serviceWorkers:'block', colorScheme:'light', viewport:{width:390,height:844} });
   const transactionPage = await transactionContext.newPage(); await transactionPage.goto(`${origin}?transactions`,{waitUntil:'networkidle'}); await transactionPage.locator('[data-mobile-section="plan"]').click();
+  await transactionPage.locator('#mobileMapControlsToggle').click();
   await Promise.all([transactionPage.waitForLoadState('domcontentloaded'),transactionPage.locator('#addFloorButton').click()]); await transactionPage.waitForFunction(()=>window.DIAppBridge); await transactionPage.waitForTimeout(180);
   const groundFloorId = await transactionPage.evaluate(()=>window.DIAppBridge.getState().home.floors[0].id); const secondFloorId = await transactionPage.evaluate(()=>window.DIAppBridge.getState().home.floors[1].id);
+  await transactionPage.locator('#mobileMapControlsToggle').click();
   await Promise.all([transactionPage.waitForLoadState('domcontentloaded'),transactionPage.locator(`#floorControls [data-floor-id="${groundFloorId}"]`).click()]); await transactionPage.waitForFunction(()=>window.DIAppBridge); await transactionPage.locator('[data-mobile-section="plan"]').click();
   const pointSnapshot = () => transactionPage.evaluate(()=>JSON.stringify(window.DIAppBridge.getState().map.points[0]));
   const beginDraftMove = async () => {
-    await transactionPage.locator('[data-editor-mode="edit"]').click();
+    await transactionPage.locator('#mobileQuickEditButton').click();
     await transactionPage.waitForSelector('body.mobile-floor-edit');
     const point = transactionPage.locator('#pointLayer [data-point]').first();
     await point.focus();
@@ -226,6 +228,10 @@ try {
 
   await page.setViewportSize({width:390,height:844}); await page.goto(`${origin}?mobile-flow`,{waitUntil:'networkidle'});
   await page.locator('[data-mobile-section="plan"]').click();
+  const collapsedPlanGeometry = await page.evaluate(()=>{const map=document.querySelector('#mapStage').getBoundingClientRect(),nav=document.querySelector('.mobile-bottom-nav').getBoundingClientRect();return {mapBottom:map.bottom,navTop:nav.top,headingVisible:Boolean(document.querySelector('.map-card>.section-heading').getClientRects().length),sheetOpen:document.querySelector('#mobilePlanControlsSheet').open};});
+  assert(!collapsedPlanGeometry.headingVisible && !collapsedPlanGeometry.sheetOpen && collapsedPlanGeometry.navTop-collapsedPlanGeometry.mapBottom < 2,`Phone Plan left stale chrome or unused space around the atlas: ${JSON.stringify(collapsedPlanGeometry)}`);
+  const mapHeightBeforeControls = await page.locator('#mapStage').evaluate(element=>element.getBoundingClientRect().height); await page.locator('#mobileMapControlsToggle').click();
+  assert(await page.locator('#mobilePlanControlsSheet').evaluate(dialog=>dialog.open) && await page.locator('#mapStage').evaluate((element,before)=>Math.abs(element.getBoundingClientRect().height - before) < 1,mapHeightBeforeControls),'Plan controls reflowed or shrank the phone atlas');
   await page.locator('#atlasLayersButton').click(); await page.waitForTimeout(50);
   const deviceLayerToggle = page.locator('[data-sheet-layer="devices"]'); await deviceLayerToggle.focus(); await page.keyboard.press('Space'); await page.waitForTimeout(80);
   assert(await page.locator('#pointLayer [data-point]').count() === 0,'Phone layer sheet did not hide device geometry and hit targets');
@@ -237,6 +243,7 @@ try {
   await page.locator('#atlasLayersShowAll').dispatchEvent('click');
   assert(await page.evaluate(()=>window.DIAppBridge.getState().map.layers.devices && !window.DIAppBridge.getState().map.layerLocks.devices),'Show all and unlock did not recover phone layers');
   await page.locator('#atlasLayersClose').dispatchEvent('click');
+  await page.locator('#mobilePlanControlsClose').click();
   await page.locator('#pointLayer [data-point]').first().dispatchEvent('click');
   await page.waitForTimeout(100);
   assert(await page.locator('#mobileDeviceSummary').isVisible(), 'Phone device tap did not open the summary sheet');
@@ -257,6 +264,9 @@ try {
   assert(await page.evaluate(()=>document.querySelector('.inspector-card').contains(document.activeElement)),'Phone modal focus escaped to the atlas background');
   await page.keyboard.press('Escape');
   assert(!(await page.locator('body').evaluate(body=>body.classList.contains('mobile-point-detail'))), 'Escape did not close phone device details');
+  await page.locator('[data-mobile-section="devices"]').click(); await page.locator('#mobileDeviceSearch').fill('no matching device');
+  assert(await page.locator('#mobileDeviceSearchEmpty').isVisible() && await page.locator('.mobile-device-row:visible').count() === 0,'Phone device search did not provide a clear empty result');
+  await page.locator('#mobileDeviceSearch').fill(''); assert(await page.locator('.mobile-device-row:visible').count() > 0,'Clearing phone device search did not restore the inventory');
 
   const landscapeContext = await browser.newContext({ serviceWorkers:'block', hasTouch:true, isMobile:true, viewport:{width:844,height:390} }); const landscapePage = await landscapeContext.newPage(); await landscapePage.goto(`${origin}?phone-landscape`,{waitUntil:'networkidle'});
   assert(await landscapePage.locator('.mobile-bottom-nav').isVisible(),'Rotated phone did not build its mobile navigation shell');

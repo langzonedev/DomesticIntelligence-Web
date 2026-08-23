@@ -17,6 +17,8 @@
   let detailHistoryOpen = false;
   let referenceHistoryOpen = false;
   let detailContext = null;
+  let modeOrigin = null;
+  let atlasOrigin = null;
 
   function isMobile() { return matchMedia(MOBILE_QUERY).matches; }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -56,6 +58,7 @@
     if (!isMobile()) return;
     if (!['plan', 'devices', 'handover', 'more'].includes(section)) section = 'plan';
     currentSection = section;
+    closePlanControls({ restoreFocus: false });
     clearSectionClasses();
     document.body.classList.add(`mobile-section-${section}`);
 
@@ -140,6 +143,103 @@
     modeBar.parentElement.insertBefore(controls, modeBar);
   }
 
+  function planControlsLabel() {
+    const floor = $('#floorControls [aria-checked="true"]')?.textContent?.trim() || 'Current storey';
+    const editing = $('[data-editor-mode="edit"]')?.getAttribute('aria-pressed') === 'true';
+    const label = $('#mobileMapControlsLabel');
+    const context = $('#mobileMapControlsContext');
+    if (label) label.textContent = floor;
+    if (context) context.textContent = editing ? 'Editing plan' : 'View plan';
+  }
+
+  function closePlanControls(options = {}) {
+    const sheet = $('#mobilePlanControlsSheet');
+    const toggle = $('#mobileMapControlsToggle');
+    if (sheet?.open) sheet.close();
+    toggle?.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('mobile-map-controls-open');
+    if (options.restoreFocus) requestAnimationFrame(() => toggle?.focus());
+  }
+
+  function openPlanControls() {
+    const sheet = $('#mobilePlanControlsSheet');
+    const toggle = $('#mobileMapControlsToggle');
+    if (!sheet || sheet.open) return;
+    planControlsLabel();
+    sheet.showModal();
+    toggle?.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('mobile-map-controls-open');
+    requestAnimationFrame(() => sheet.querySelector('[aria-checked="true"]')?.focus() || $('#mobilePlanControlsClose')?.focus());
+  }
+
+  function buildPlanControlsSheet() {
+    if (!matchMedia('(max-width: 760px)').matches) return;
+    const workspace = $('.workspace-controls');
+    const floors = $('#floorControls');
+    const modeBar = $('.editor-mode-bar');
+    const atlas = $('.atlas-commandbar');
+    if (!workspace || !floors || !modeBar || !atlas) return;
+
+    let toggle = $('#mobileMapControlsToggle');
+    if (!toggle) {
+      toggle = document.createElement('button');
+      toggle.id = 'mobileMapControlsToggle';
+      toggle.type = 'button';
+      toggle.className = 'mobile-map-controls-toggle';
+      toggle.setAttribute('aria-controls', 'mobilePlanControlsSheet');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.innerHTML = '<span><strong id="mobileMapControlsLabel">Current storey</strong><small id="mobileMapControlsContext">View plan</small></span><span class="mobile-map-controls-chevron" aria-hidden="true">⌃</span>';
+      toggle.addEventListener('click', openPlanControls);
+      workspace.prepend(toggle);
+    }
+
+    let quickEdit = $('#mobileQuickEditButton');
+    if (!quickEdit) {
+      quickEdit = document.createElement('button');
+      quickEdit.id = 'mobileQuickEditButton';
+      quickEdit.type = 'button';
+      quickEdit.className = 'quiet-action mobile-quick-edit';
+      quickEdit.textContent = 'Edit';
+      quickEdit.addEventListener('click', () => $('[data-editor-mode="edit"]')?.click());
+      toggle.after(quickEdit);
+    }
+
+    let sheet = $('#mobilePlanControlsSheet');
+    if (!sheet) {
+      sheet = document.createElement('dialog');
+      sheet.id = 'mobilePlanControlsSheet';
+      sheet.className = 'mobile-plan-controls-sheet';
+      sheet.setAttribute('aria-labelledby', 'mobilePlanControlsTitle');
+      sheet.innerHTML = '<div class="mobile-plan-sheet-heading"><div><p class="eyebrow">Floor plan</p><h2 id="mobilePlanControlsTitle">Plan controls</h2></div><button id="mobilePlanControlsClose" class="icon-action" type="button" aria-label="Close plan controls">×</button></div><div id="mobilePlanControlsBody" class="mobile-plan-controls-body"></div>';
+      document.body.append(sheet);
+      $('#mobilePlanControlsClose').addEventListener('click', () => closePlanControls({ restoreFocus: true }));
+      sheet.addEventListener('click', event => { if (event.target === sheet) closePlanControls({ restoreFocus: true }); });
+      sheet.addEventListener('close', () => {
+        toggle.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('mobile-map-controls-open');
+      });
+    }
+
+    if (!modeOrigin) modeOrigin = { parent: modeBar.parentElement, before: modeBar.nextSibling };
+    if (!atlasOrigin) atlasOrigin = { parent: atlas.parentElement, before: atlas.nextSibling };
+    const body = $('#mobilePlanControlsBody');
+    [floors, modeBar, atlas].forEach(control => { if (control.parentElement !== body) body.append(control); });
+    const editButton = modeBar.querySelector('[data-editor-mode="edit"]');
+    if (editButton && editButton.dataset.mobileSheetBound !== 'true') {
+      editButton.dataset.mobileSheetBound = 'true';
+      editButton.addEventListener('click', () => closePlanControls());
+    }
+    planControlsLabel();
+  }
+
+  function restorePlanControls() {
+    closePlanControls({ restoreFocus: false });
+    const modeBar = $('.editor-mode-bar');
+    const atlas = $('.atlas-commandbar');
+    if (modeOrigin && modeBar) modeOrigin.parent.insertBefore(modeBar, modeOrigin.before?.isConnected ? modeOrigin.before : null);
+    if (atlasOrigin && atlas) atlasOrigin.parent.insertBefore(atlas, atlasOrigin.before?.isConnected ? atlasOrigin.before : null);
+  }
+
   function readinessLabel(point) {
     try {
       const status = window.DIEditorCore?.deriveDeviceReadiness(point);
@@ -158,21 +258,45 @@
       const button = event.target.closest('[data-open-device]');
       if (button) openDevice(button.dataset.openDevice, button.dataset.floorId);
     });
+    view.addEventListener('input', event => {
+      if (event.target.id !== 'mobileDeviceSearch') return;
+      filterDevices(event.target.value);
+    });
+  }
+
+  function filterDevices(query = '') {
+    const view = $('#mobileDevicesView');
+    if (!view) return;
+    const needle = String(query).trim().toLocaleLowerCase();
+    let visible = 0;
+    view.querySelectorAll('.mobile-device-group').forEach(group => {
+      let groupVisible = 0;
+      group.querySelectorAll('[data-open-device]').forEach(row => {
+        const match = !needle || (row.dataset.searchText || '').includes(needle);
+        row.hidden = !match;
+        if (match) { visible += 1; groupVisible += 1; }
+      });
+      group.hidden = Boolean(needle) && groupVisible === 0;
+    });
+    const empty = $('#mobileDeviceSearchEmpty');
+    if (empty) empty.hidden = visible !== 0;
   }
 
   async function refreshDevicesView() {
     const view = $('#mobileDevicesView');
     const state = await getState();
     if (!view || !state) return;
+    const query = $('#mobileDeviceSearch')?.value || '';
     const floors = state.home?.floors?.length ? state.home.floors : [{ id: 'ground', name: 'Ground floor', map: state.map }];
     const groups = floors.map(floor => {
       const points = floor.map?.points || [];
       const floorName = escapeHtml(floor.name || 'Storey');
-      const rows = points.map(point => `<button type="button" class="mobile-device-row" data-open-device="${escapeHtml(point.id)}" data-floor-id="${escapeHtml(floor.id)}"><span class="mobile-device-primary"><strong>${escapeHtml(point.name || 'Unnamed device')}</strong><small>${escapeHtml(point.category || 'Device')} · ${escapeHtml(readinessLabel(point))}</small></span><span class="mobile-device-chevron" aria-hidden="true">›</span></button>`).join('');
+      const rows = points.map(point => { const readiness = readinessLabel(point); const searchText = `${point.name || ''} ${point.category || ''} ${floor.name || ''} ${readiness}`.toLocaleLowerCase(); return `<button type="button" class="mobile-device-row" data-open-device="${escapeHtml(point.id)}" data-floor-id="${escapeHtml(floor.id)}" data-search-text="${escapeHtml(searchText)}"><span class="mobile-device-primary"><strong>${escapeHtml(point.name || 'Unnamed device')}</strong><small>${escapeHtml(point.category || 'Device')}</small></span><span class="mobile-device-state">${escapeHtml(readiness)}</span><span class="mobile-device-chevron" aria-hidden="true">›</span></button>`; }).join('');
       return `<section class="mobile-device-group"><div class="mobile-device-group-heading"><h2>${floorName}</h2><span>${points.length} ${points.length === 1 ? 'device' : 'devices'}</span></div>${points.length ? `<div class="mobile-device-list">${rows}</div>` : '<p class="mobile-empty-copy">No devices recorded on this storey.</p>'}</section>`;
     }).join('');
     const total = floors.reduce((sum, floor) => sum + (floor.map?.points?.length || 0), 0);
-    view.innerHTML = `<div class="mobile-page-heading"><p class="eyebrow">Property devices</p><h1>${total} ${total === 1 ? 'device' : 'devices'}</h1><p>Choose a device to inspect or update its commissioning details.</p></div>${groups}`;
+    view.innerHTML = `<div class="mobile-page-heading"><p class="eyebrow">Property devices</p><h1>${total} ${total === 1 ? 'device' : 'devices'}</h1><p>Open a device for a quick status or its full record.</p></div><label class="mobile-device-search"><span class="visually-hidden-file">Search devices</span><input id="mobileDeviceSearch" type="search" inputmode="search" autocomplete="off" placeholder="Search devices" value="${escapeHtml(query)}"></label><p id="mobileDeviceSearchEmpty" class="mobile-empty-copy" hidden>No devices match that search.</p>${groups}`;
+    filterDevices(query);
   }
 
   async function openDevice(deviceId, floorId) {
@@ -202,7 +326,7 @@
       view.id = 'mobileMoreView';
       view.className = 'mobile-more-view';
       view.hidden = true;
-      view.innerHTML = '<section class="mobile-more-card"><p class="eyebrow">Property</p><h2>Property settings</h2><div id="mobileAddressHost"></div></section><section class="mobile-more-card"><p class="eyebrow">Preferences</p><h2>App settings</h2><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Appearance</strong><small>Follows your device light or dark theme automatically.</small></div><span aria-hidden="true">◐</span></div><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Profile & sharing</strong><small>Account and trade access controls will live here as shared-property services are introduced.</small></div><span aria-hidden="true">›</span></div></section><section class="mobile-more-card"><p class="eyebrow">About</p><h2>Domestic Intelligence</h2><div id="mobileAboutHost"></div><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Local data</strong><small>Reset this browser’s synthetic prototype data and imported plans.</small></div><button type="button" class="quiet-action" id="mobileResetDemo">Reset</button></div></section>';
+      view.innerHTML = '<section class="mobile-more-card"><p class="eyebrow">Property</p><h2>Property settings</h2><div id="mobileAddressHost"></div></section><section class="mobile-more-card"><p class="eyebrow">Preferences</p><h2>Appearance</h2><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Automatic theme</strong><small>Follows your device light or dark appearance.</small></div><span aria-hidden="true">◐</span></div></section><section class="mobile-more-card mobile-about-card"><p class="eyebrow">About</p><h2>Domestic Intelligence</h2><div id="mobileAboutHost"></div><div class="mobile-settings-row"><div class="mobile-settings-copy"><strong>Local data</strong><small>Reset this browser’s demo data and imported plans.</small></div><button type="button" class="quiet-action" id="mobileResetDemo">Reset</button></div></section>';
       $('#top')?.append(view);
       const prototype = $('.app-shell>.prototype-note');
       if (prototype) view.querySelector('#mobileAboutHost').append(prototype.cloneNode(true));
@@ -361,6 +485,7 @@
     buildTopBar();
     buildBottomNav();
     moveFloorControlsToPlan();
+    buildPlanControlsSheet();
     buildDevicesView();
     buildMoreView();
     installMobileDetailApi();
@@ -406,10 +531,12 @@
 
   window.addEventListener('resize', () => {
     if (isMobile()) {
+      if (!matchMedia('(max-width: 760px)').matches) restorePlanControls();
       ensureMobileShell();
       return;
     }
     window.DIMobileDetail?.close({ restoreFocus: false });
+    restorePlanControls();
     clearSectionClasses();
     if (floorOrigin && $('#floorControls')) floorOrigin.parent.insertBefore($('#floorControls'), floorOrigin.before || null);
     if (addressOrigin && $('.address-editor')) addressOrigin.parent.insertBefore($('.address-editor'), addressOrigin.before || null);
@@ -423,6 +550,7 @@
   });
 
   window.addEventListener('di:app-state-ready', refreshShellState);
+  window.addEventListener('di:render', planControlsLabel);
   window.addEventListener('di:address-editor-ready', () => {
     buildMoreView();
     rehomeAddressEditor();

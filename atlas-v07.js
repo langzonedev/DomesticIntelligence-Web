@@ -263,7 +263,7 @@
       existingRows.forEach((row, index) => {
         const layer = layerKeys[index]; const checkbox = row.querySelector('[data-sheet-layer]'); const lock = row.querySelector('[data-sheet-lock]');
         checkbox.checked = Boolean(layers[layer]);
-        lock.textContent = locks[layer] ? '▣' : '□'; lock.setAttribute('aria-pressed', String(Boolean(locks[layer])));
+        lock.textContent = locks[layer] ? 'Locked' : 'Lock'; lock.setAttribute('aria-pressed', String(Boolean(locks[layer])));
         lock.setAttribute('aria-label', `${locks[layer] ? 'Unlock' : 'Lock'} ${layerLabels[layer] || layer} layer`);
       });
       return;
@@ -275,7 +275,7 @@
       checkbox.dataset.sheetLayer = layer; checkbox.checked = Boolean(layers[layer]);
       const label = document.createElement('label'); label.htmlFor = checkbox.id; label.textContent = layerLabels[layer] || layer;
       const lock = document.createElement('button'); lock.type = 'button'; lock.className = 'icon-action'; lock.dataset.sheetLock = layer;
-      lock.textContent = locks[layer] ? '▣' : '□'; lock.setAttribute('aria-pressed', String(Boolean(locks[layer])));
+      lock.textContent = locks[layer] ? 'Locked' : 'Lock'; lock.setAttribute('aria-pressed', String(Boolean(locks[layer])));
       lock.setAttribute('aria-label', `${locks[layer] ? 'Unlock' : 'Lock'} ${layerLabels[layer] || layer} layer`);
       row.append(checkbox, label, lock); host.append(row);
     });

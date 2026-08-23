@@ -11,24 +11,25 @@
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       let releaseRefreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-21') === 'done') return;
+        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-22') === 'done') return;
         releaseRefreshing = true;
-        sessionStorage.setItem('di-release-refresh-07-21', 'done');
+        sessionStorage.setItem('di-release-refresh-07-22', 'done');
         location.reload();
       });
     }
   </script>
-  <link rel="manifest" href="manifest.webmanifest?v=07-21">
+  <link rel="manifest" href="manifest.webmanifest?v=07-22">
   <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="theme.css?v=07-21">
-  <link rel="stylesheet" href="theme-v07.css?v=07-21">
-  <link rel="stylesheet" href="v2.css?v=07-21">
-  <link rel="stylesheet" href="theme-bridge.css?v=07-21">
-  <link rel="stylesheet" href="mobile-v03.css?v=07-21">
-  <link rel="stylesheet" href="mobile-v06.css?v=07-21">
-  <link rel="stylesheet" href="ui-kit.css?v=07-21">
-  <link rel="stylesheet" href="atlas-v07.css?v=07-21">
+  <link rel="stylesheet" href="theme.css?v=07-22">
+  <link rel="stylesheet" href="theme-v07.css?v=07-22">
+  <link rel="stylesheet" href="v2.css?v=07-22">
+  <link rel="stylesheet" href="theme-bridge.css?v=07-22">
+  <link rel="stylesheet" href="mobile-v03.css?v=07-22">
+  <link rel="stylesheet" href="mobile-v06.css?v=07-22">
+  <link rel="stylesheet" href="ui-kit.css?v=07-22">
+  <link rel="stylesheet" href="atlas-v07.css?v=07-22">
+  <link rel="stylesheet" href="mobile-v08.css?v=07-22">
 </head>
 <body>
   <div class="app-shell">
@@ -104,7 +105,7 @@
             <div id="editToolbar" class="edit-toolbar" hidden>
               <button type="button" class="tool-button" data-tool="select">Select</button>
               <button type="button" class="tool-button" data-tool="wall">+ Wall</button>
-              <button type="button" class="tool-button" data-tool="point">+ Device point</button>
+              <button type="button" class="tool-button" data-tool="point">+ Device</button>
               <button id="uploadPlanButton" type="button" class="tool-button">Upload plan</button>
               <button type="button" class="tool-button atlas-layers-trigger" id="atlasEditLayersButton" aria-haspopup="dialog" aria-controls="atlasLayersDialog"><span aria-hidden="true">▱</span> Layers</button>
               <button id="editFitStorey" type="button" class="tool-button">Fit storey</button>
@@ -193,11 +194,11 @@
 
       <section id="handoverView" hidden>
         <div class="handover-hero">
-          <p class="eyebrow">Homeowner view</p><h1>Handover package</h1>
-          <p class="muted">A clean, non-secret summary. IP addresses, serial numbers and installer notes are excluded from the homeowner PDF.</p>
+          <p class="eyebrow">Homeowner view</p><h1>Handover</h1>
+          <p class="muted">Check readiness and export a homeowner-safe record or the installer data.</p>
           <div id="handoverStatus"></div>
           <div class="export-actions">
-            <button id="exportPdf" type="button" class="primary-action">Download homeowner PDF</button>
+            <button id="exportPdf" type="button" class="primary-action">Homeowner PDF</button>
             <button id="exportCsv" type="button" class="quiet-action">Installer CSV</button>
             <button id="exportJson" type="button" class="quiet-action">Installer JSON</button>
           </div>
@@ -226,16 +227,16 @@
     <button id="atlasLayersShowAll" type="button" class="quiet-action full">Show all and unlock</button>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="editor-core.js?v=07-21"></script>
-  <script src="property-model.js?v=07-21"></script>
-  <script src="storage.js?v=07-21"></script>
-  <script src="exporters.js?v=07-21"></script>
-  <script src="ui-icons.js?v=07-21"></script>
-  <script src="ui-kit.js?v=07-21"></script>
-  <script src="state-guard-v04.js?v=07-21"></script>
-  <script src="mobile-v03.js?v=07-21"></script>
-  <script src="app-v2.js?v=07-21"></script>
-  <script src="mobile-v05.js?v=07-21"></script>
-  <script src="atlas-v07.js?v=07-21"></script>
+  <script src="editor-core.js?v=07-22"></script>
+  <script src="property-model.js?v=07-22"></script>
+  <script src="storage.js?v=07-22"></script>
+  <script src="exporters.js?v=07-22"></script>
+  <script src="ui-icons.js?v=07-22"></script>
+  <script src="ui-kit.js?v=07-22"></script>
+  <script src="state-guard-v04.js?v=07-22"></script>
+  <script src="mobile-v03.js?v=07-22"></script>
+  <script src="app-v2.js?v=07-22"></script>
+  <script src="mobile-v05.js?v=07-22"></script>
+  <script src="atlas-v07.js?v=07-22"></script>
 </body>
 </html>
