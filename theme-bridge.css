@@ -157,6 +157,11 @@
 
 /* Mobile selected-device quick record refinements. */
 @media (max-width: 760px) {
+  body.mobile-point-detail #mobileDeviceSummary,
+  body.mobile-new-device-detail #mobileDeviceSummary {
+    display: none !important;
+  }
+
   .mobile-device-summary:not([hidden]) {
     grid-template-rows: auto auto auto auto auto !important;
     align-content: start !important;
