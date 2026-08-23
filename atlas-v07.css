@@ -36,6 +36,8 @@
 .map-stage .wall-label{paint-order:stroke;stroke:var(--di-map-bg);stroke-width:6px;stroke-linejoin:round}
 .map-stage .dimension-label{font-size:18px;font-weight:800;fill:var(--di-selection);paint-order:stroke;stroke:var(--di-map-bg);stroke-width:7px}
 .map-stage .alignment-guide{stroke:var(--di-focus);stroke-width:2;stroke-dasharray:8 7;vector-effect:non-scaling-stroke;pointer-events:none}
+.atlas-orientation-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;margin:10px 0 14px;font-weight:800}
+.atlas-orientation-control select{min-width:150px;min-height:44px;border:1px solid var(--di-border);border-radius:10px;padding:8px 34px 8px 10px;background:var(--di-field);color:var(--di-text)}
 .wall-metrics{margin:8px 0 12px;padding:10px;border-radius:8px;background:var(--di-subtle);font-variant-numeric:tabular-nums;font-weight:800}
 
 .inspector-card{overflow:auto;max-height:calc(100vh - 190px);padding:12px}

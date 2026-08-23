@@ -6,8 +6,11 @@
   const $ = selector => document.querySelector(selector);
   const stage = $('#mapStage');
   const svg = $('#mapSvg');
+  const content = $('#atlasContent');
   const canvas = $('#planCanvas');
-  if (!Core || !stage || !svg || !canvas) return;
+  if (!Core || !stage || !svg || !content || !canvas) return;
+
+  const CAMERA_STORAGE_KEY = 'domestic-intelligence-atlas-camera-v1';
 
   let tool = 'select';
   let viewport = { x: 0, y: 0, zoom: 1 };
@@ -21,6 +24,7 @@
   const touches = new Map();
   let pinch = null;
   let layersReturnFocus = null;
+  let cameraOrientation = 'portrait';
   const layerLabels = {
     floorplan: 'Reference plan', walls: 'Walls / structure', openings: 'Doors / windows',
     roomLabels: 'Room labels', devices: 'Devices', status: 'Commissioning status',
@@ -33,6 +37,80 @@
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const round = value => Math.round(value * 100) / 100;
 
+  function activeFloorId(state) { return String(state?.home?.activeFloorId || state?.home?.floors?.[0]?.id || 'ground'); }
+
+  function readCameraRecords() {
+    try { const parsed = JSON.parse(localStorage.getItem(CAMERA_STORAGE_KEY) || '{}'); return parsed && typeof parsed === 'object' ? parsed : {}; }
+    catch (_) { return {}; }
+  }
+
+  function writeCameraRecord(state, patch) {
+    try {
+      const records = readCameraRecords(), id = activeFloorId(state), current = records[id] && typeof records[id] === 'object' ? records[id] : {};
+      records[id] = { ...current, ...patch };
+      localStorage.setItem(CAMERA_STORAGE_KEY, JSON.stringify(records));
+    } catch (_) { /* project state remains authoritative when preferences are unavailable */ }
+  }
+
+  function cameraRecord(state) { return readCameraRecords()[activeFloorId(state)] || {}; }
+
+  function orientationPreference(state) {
+    const preference = cameraRecord(state).preference;
+    return ['portrait','landscape'].includes(preference) ? preference : 'auto';
+  }
+
+  function resolveCameraOrientation(state) {
+    const preference = orientationPreference(state);
+    if (preference !== 'auto') return preference;
+    const width = Math.max(1, stage.clientWidth), height = Math.max(1, stage.clientHeight);
+    const portraitFit = Math.min(width / state.map.width, height / state.map.height);
+    const landscapeFit = Math.min(width / state.map.height, height / state.map.width);
+    return landscapeFit > portraitFit * 1.08 ? 'landscape' : 'portrait';
+  }
+
+  function displayViewport(state, orientation, orientationChanged = false) {
+    const record = cameraRecord(state), saved = record.views?.[orientation];
+    if (saved) return saved;
+    if (orientationChanged && record.lastOrientation && record.lastOrientation !== orientation) return { x: 0, y: 0, zoom: 1 };
+    return state.map.viewport || { x: 0, y: 0, zoom: 1 };
+  }
+
+  function saveCameraViewport(state) {
+    const record = cameraRecord(state), views = { ...(record.views || {}), [cameraOrientation]: { ...viewport } };
+    writeCameraRecord(state, { views, lastOrientation: cameraOrientation });
+  }
+
+  function applyUprightSpatialLabels(state) {
+    const landscape = cameraOrientation === 'landscape';
+    state.map.points.forEach(point => {
+      const group = document.querySelector(`[data-point="${CSS.escape(point.id)}"]`); if (!group) return;
+      group.setAttribute('transform', `translate(${point.x} ${point.y})${landscape ? ' rotate(-90)' : ''}`);
+      const label = group.querySelector('text'); if (!label) return;
+      const screenX = landscape ? state.map.height - point.y : point.x;
+      const screenWidth = landscape ? state.map.height : state.map.width;
+      const onRight = screenX < screenWidth * .68;
+      label.setAttribute('x', onRight ? '34' : '-34'); label.setAttribute('text-anchor', onRight ? 'start' : 'end');
+    });
+    document.querySelectorAll('.wall-label,.dimension-label').forEach(label => {
+      if (landscape) label.setAttribute('transform', `rotate(-90 ${label.getAttribute('x')} ${label.getAttribute('y')})`);
+      else label.removeAttribute('transform');
+    });
+  }
+
+  function syncCameraOrientation(state) {
+    const next = resolveCameraOrientation(state), changed = next !== cameraOrientation;
+    cameraOrientation = next;
+    stage.dataset.atlasOrientation = next;
+    stage.classList.toggle('atlas-landscape', next === 'landscape');
+    svg.setAttribute('viewBox', next === 'landscape' ? `0 0 ${state.map.height} ${state.map.width}` : `0 0 ${state.map.width} ${state.map.height}`);
+    content.setAttribute('transform', next === 'landscape' ? `translate(${state.map.height} 0) rotate(90)` : '');
+    const control = $('#atlasOrientation'); if (control) control.value = orientationPreference(state);
+    const description = $('#mapDescription'); if (description) description.textContent = `${next === 'landscape' ? 'Landscape' : 'Portrait'} camera view of walls and device points. Switch to Edit map to move or add items.`;
+    if (changed) bridge()?.redrawPlan?.();
+    applyUprightSpatialLabels(state);
+    return changed;
+  }
+
   function applyViewport(next = viewport) {
     viewport = { x: Number(next.x) || 0, y: Number(next.y) || 0, zoom: clamp(Number(next.zoom) || 1, .1, 8) };
     const transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
@@ -40,8 +118,9 @@
     svg.style.transform = transform;
     const state = currentState();
     if (state?.map) {
-      const gridX = state.map.gridSize / state.map.width * stage.clientWidth * viewport.zoom;
-      const gridY = state.map.gridSize / state.map.height * stage.clientHeight * viewport.zoom;
+      const landscape = cameraOrientation === 'landscape';
+      const gridX = state.map.gridSize / (landscape ? state.map.height : state.map.width) * stage.clientWidth * viewport.zoom;
+      const gridY = state.map.gridSize / (landscape ? state.map.width : state.map.height) * stage.clientHeight * viewport.zoom;
       stage.style.backgroundSize = `${Math.max(4, gridX)}px ${Math.max(4, gridY)}px`;
       stage.style.backgroundPosition = `${viewport.x}px ${viewport.y}px`;
     }
@@ -57,6 +136,7 @@
       viewportMessage = null;
       const state = currentState();
       if (!state) return;
+      saveCameraViewport(state);
       bridge().commitState(Core.setMapViewport(state, viewport), pendingMessage);
     }, 120);
   }
@@ -75,6 +155,7 @@
     viewportMessage = null;
     const state = currentState();
     if (!state || !bridge()) return false;
+    saveCameraViewport(state);
     bridge().commitState(Core.setMapViewport(state, viewport), pendingMessage);
     return true;
   }
@@ -111,7 +192,7 @@
 
   function pointFromClient(clientX, clientY) {
     const state = currentState();
-    const matrix = svg.getScreenCTM();
+    const matrix = content.getScreenCTM();
     if (matrix) {
       const point = svg.createSVGPoint(); point.x = clientX; point.y = clientY;
       const local = point.matrixTransform(matrix.inverse());
@@ -519,7 +600,8 @@
 
   function onRender(event) {
     const state = event.detail?.state || currentState(); if (!state) return;
-    if (!pan && !pinch) applyViewport(state.map.viewport || { x: 0, y: 0, zoom: 1 });
+    const orientationChanged = syncCameraOrientation(state);
+    if (!pan && !pinch) applyViewport(displayViewport(state, cameraOrientation, orientationChanged));
     const floor = state.home?.floors?.find(item => item.id === state.home.activeFloorId);
     const visible = Object.values(state.map.layers || {}).filter(Boolean).length;
     if ($('#storeyContext')) $('#storeyContext').textContent = `${floor?.name || 'Current storey'} · ${visible} active layers`;
@@ -532,6 +614,15 @@
   function bind() {
     ensureDeviceSummaryEnhancements();
     document.querySelectorAll('[data-atlas-tool]').forEach(button => button.addEventListener('click', () => setTool(button.dataset.atlasTool)));
+    $('#atlasOrientation')?.addEventListener('change', event => {
+      const state = currentState(); if (!state) return;
+      const preference = ['portrait','landscape'].includes(event.target.value) ? event.target.value : 'auto';
+      writeCameraRecord(state, { preference });
+      const changed = syncCameraOrientation(state);
+      applyViewport(displayViewport(state, cameraOrientation, changed));
+      bridge()?.redrawPlan?.();
+      bridge()?.notify(`Atlas orientation set to ${preference}.`);
+    });
     $('#zoomIn')?.addEventListener('click', () => zoomAt(viewport.zoom * 1.2, null, null, 'View zoomed in.'));
     $('#zoomOut')?.addEventListener('click', () => zoomAt(viewport.zoom / 1.2, null, null, 'View zoomed out.'));
     $('#fitStorey')?.addEventListener('click', () => resetViewport('Storey fitted to the canvas.'));
@@ -613,7 +704,10 @@
     $('#openDeviceRecord')?.addEventListener('click', openSummaryRecord);
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#mobileDeviceSummary')?.hidden) { event.preventDefault(); closeDeviceSummary(); } });
     window.addEventListener('popstate', () => closeDeviceSummary({ restoreFocus:false }));
-    window.addEventListener('resize', () => { syncResponsiveMode(); if (!pan && !pinch) applyViewport(currentState()?.map.viewport || viewport); });
+    window.addEventListener('resize', () => {
+      syncResponsiveMode(); const state = currentState(); if (!state || pan || pinch) return;
+      const changed = syncCameraOrientation(state); applyViewport(displayViewport(state, cameraOrientation, changed)); bridge()?.redrawPlan?.();
+    });
     syncResponsiveMode();
     onRender({ detail: { state: currentState(), selection: bridge()?.getSelection() } });
   }

@@ -387,7 +387,7 @@
   }
 
   function mapPosition(event) {
-    const matrix = el.svg.getScreenCTM();
+    const matrix = document.querySelector('#atlasContent')?.getScreenCTM() || el.svg.getScreenCTM();
     if (matrix) {
       const point = el.svg.createSVGPoint(); point.x = event.clientX; point.y = event.clientY;
       const local = point.matrixTransform(matrix.inverse());
@@ -582,15 +582,23 @@
 
   function renderPlanCanvas() {
     const canvas = el.planCanvas, context = canvas.getContext('2d');
+    const landscape = el.stage.dataset.atlasOrientation === 'landscape';
+    const logicalWidth = state().map.width, logicalHeight = state().map.height;
+    const targetWidth = landscape ? logicalHeight : logicalWidth;
+    const targetHeight = landscape ? logicalWidth : logicalHeight;
+    if (canvas.width !== targetWidth) canvas.width = targetWidth;
+    if (canvas.height !== targetHeight) canvas.height = targetHeight;
     context.clearRect(0, 0, canvas.width, canvas.height);
     const current = state();
     if (!planSource || !current.map.floorplan || !current.map.layers.floorplan) return;
     const transform = current.map.floorplan.transform;
-    const fit = Math.min(canvas.width * 0.94 / planSource.width, canvas.height * 0.94 / planSource.height);
+    const fit = Math.min(logicalWidth * 0.94 / planSource.width, logicalHeight * 0.94 / planSource.height);
     const width = planSource.width * fit * transform.scale / 100;
     const height = planSource.height * fit * transform.scale / 100;
-    context.save(); context.globalAlpha = transform.opacity / 100;
-    context.translate(canvas.width / 2 + transform.x, canvas.height / 2 + transform.y);
+    context.save();
+    if (landscape) { context.translate(logicalHeight, 0); context.rotate(Math.PI / 2); }
+    context.globalAlpha = transform.opacity / 100;
+    context.translate(logicalWidth / 2 + transform.x, logicalHeight / 2 + transform.y);
     context.rotate(transform.rotation * Math.PI / 180);
     context.drawImage(planSource, -width / 2, -height / 2, width, height); context.restore();
   }
@@ -732,6 +740,7 @@
       cancelScheduledSave,
       flushScheduledSave,
       flushPendingWork,
+      redrawPlan: renderPlanCanvas,
       replaceRuntimeState,
       commitState: (next, message) => commit(next, message),
       selectSpatial: (type, id, focusTarget) => select(type, id, focusTarget),

@@ -11,26 +11,26 @@
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       let releaseRefreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-23') === 'done') return;
+        if (releaseRefreshing || sessionStorage.getItem('di-release-refresh-07-24') === 'done') return;
         releaseRefreshing = true;
-        sessionStorage.setItem('di-release-refresh-07-23', 'done');
+        sessionStorage.setItem('di-release-refresh-07-24', 'done');
         location.reload();
       });
     }
   </script>
-  <link rel="manifest" href="manifest.webmanifest?v=07-23">
+  <link rel="manifest" href="manifest.webmanifest?v=07-24">
   <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="theme.css?v=07-23">
-  <link rel="stylesheet" href="theme-v07.css?v=07-23">
-  <link rel="stylesheet" href="v2.css?v=07-23">
-  <link rel="stylesheet" href="theme-bridge.css?v=07-23">
-  <link rel="stylesheet" href="mobile-v03.css?v=07-23">
-  <link rel="stylesheet" href="mobile-v06.css?v=07-23">
-  <link rel="stylesheet" href="ui-kit.css?v=07-23">
-  <link rel="stylesheet" href="atlas-v07.css?v=07-23">
-  <link rel="stylesheet" href="mobile-v08.css?v=07-23">
-  <link rel="stylesheet" href="desktop-v09.css?v=07-23">
+  <link rel="stylesheet" href="theme.css?v=07-24">
+  <link rel="stylesheet" href="theme-v07.css?v=07-24">
+  <link rel="stylesheet" href="v2.css?v=07-24">
+  <link rel="stylesheet" href="theme-bridge.css?v=07-24">
+  <link rel="stylesheet" href="mobile-v03.css?v=07-24">
+  <link rel="stylesheet" href="mobile-v06.css?v=07-24">
+  <link rel="stylesheet" href="ui-kit.css?v=07-24">
+  <link rel="stylesheet" href="atlas-v07.css?v=07-24">
+  <link rel="stylesheet" href="mobile-v08.css?v=07-24">
+  <link rel="stylesheet" href="desktop-v09.css?v=07-24">
 </head>
 <body>
   <div class="app-shell">
@@ -121,7 +121,7 @@
               <svg id="mapSvg" viewBox="0 0 800 1200" role="group" aria-labelledby="mapTitle mapDescription">
                 <title id="mapTitle">Domestic Intelligence editable home map</title>
                 <desc id="mapDescription">Portrait-oriented walls and device points. The main entrance is conventionally placed toward the bottom of the plan. Switch to Edit map to move or add items.</desc>
-                <g id="gridLayer"></g><g id="wallLayer"></g><g id="pointLayer"></g><g id="handleLayer"></g>
+                <g id="atlasContent"><g id="gridLayer"></g><g id="wallLayer"></g><g id="pointLayer"></g><g id="handleLayer"></g></g>
               </svg>
               <div id="mapEmpty" class="map-empty" hidden>No visible map layers. <button type="button" id="showAllInline">Show all layers</button></div>
             </div>
@@ -229,20 +229,21 @@
       <button id="atlasLayersClose" class="icon-action" type="button" aria-label="Close layers">×</button>
     </div>
     <p class="muted compact">Hide map information or lock it against changes. Hidden layers cannot be selected.</p>
+    <label class="atlas-orientation-control"><span>View orientation</span><select id="atlasOrientation"><option value="auto">Automatic</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
     <div id="atlasLayerSheetList" class="atlas-sheet-layer-list"></div>
     <button id="atlasLayersShowAll" type="button" class="quiet-action full">Show all and unlock</button>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="editor-core.js?v=07-23"></script>
-  <script src="property-model.js?v=07-23"></script>
-  <script src="storage.js?v=07-23"></script>
-  <script src="exporters.js?v=07-23"></script>
-  <script src="ui-icons.js?v=07-23"></script>
-  <script src="ui-kit.js?v=07-23"></script>
-  <script src="state-guard-v04.js?v=07-23"></script>
-  <script src="mobile-v03.js?v=07-23"></script>
-  <script src="app-v2.js?v=07-23"></script>
-  <script src="mobile-v05.js?v=07-23"></script>
-  <script src="atlas-v07.js?v=07-23"></script>
+  <script src="editor-core.js?v=07-24"></script>
+  <script src="property-model.js?v=07-24"></script>
+  <script src="storage.js?v=07-24"></script>
+  <script src="exporters.js?v=07-24"></script>
+  <script src="ui-icons.js?v=07-24"></script>
+  <script src="ui-kit.js?v=07-24"></script>
+  <script src="state-guard-v04.js?v=07-24"></script>
+  <script src="mobile-v03.js?v=07-24"></script>
+  <script src="app-v2.js?v=07-24"></script>
+  <script src="mobile-v05.js?v=07-24"></script>
+  <script src="atlas-v07.js?v=07-24"></script>
 </body>
 </html>

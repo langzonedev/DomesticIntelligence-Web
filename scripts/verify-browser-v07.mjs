@@ -61,8 +61,8 @@ try {
   await upgradePage.waitForSelector('#mapStage');
   const releaseBoundary = await upgradePage.evaluate(() => ({
     fatal:Boolean(document.querySelector('.fatal')),
-    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-23')),
-    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-23'))
+    styles:[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.href.includes('?v=07-24')),
+    scripts:[...document.scripts].filter(script=>script.src).every(script=>script.src.includes('?v=07-24'))
   }));
   assert(!releaseBoundary.fatal && releaseBoundary.styles && releaseBoundary.scripts, 'Legacy service worker mixed an old runtime into the versioned release shell');
   assert(upgradeErrors.length === 0, `Legacy service-worker upgrade produced runtime errors: ${upgradeErrors.join(' | ')}`);
@@ -88,7 +88,8 @@ try {
       });
       const map = document.querySelector('#mapStage').getBoundingClientRect();
       const editor = document.querySelector('.editor-grid').getBoundingClientRect();
-      return { fatal:Boolean(document.querySelector('.fatal')), innerWidth, innerHeight, scrollWidth:document.documentElement.scrollWidth, map:{top:map.top,width:map.width,height:map.height}, editor:{top:editor.top,bottom:editor.bottom,height:editor.height}, controls, bodyClass:document.body.className };
+      const stage = document.querySelector('#mapStage'), svg = document.querySelector('#mapSvg');
+      return { fatal:Boolean(document.querySelector('.fatal')), innerWidth, innerHeight, scrollWidth:document.documentElement.scrollWidth, map:{top:map.top,width:map.width,height:map.height}, editor:{top:editor.top,bottom:editor.bottom,height:editor.height}, controls, bodyClass:document.body.className, orientation:stage.dataset.atlasOrientation, viewBox:svg.getAttribute('viewBox') };
     });
     const undersized = result.controls.filter(control => control.width < 43.5 || control.height < 43.5);
     const clipped = result.controls.filter(control => control.left < -0.5 || control.right > result.innerWidth + .5);
@@ -102,7 +103,9 @@ try {
     if (width === 390) assert(result.map.top <= 240, `Phone Plan chrome displaced the atlas below ${Math.round(result.map.top)}px`);
     if (width === 768) assert(result.map.top <= 420, `Tablet chrome displaced the atlas below ${Math.round(result.map.top)}px`);
     if (width === 844 && height === 390) assert(result.bodyClass.includes('atlas-short-landscape') && result.map.height >= height - 1, 'Phone landscape did not retain the full-height atlas shell');
-    evidence.push({ width,height,overflow:result.scrollWidth-result.innerWidth,map:`${Math.round(result.map.width)}x${Math.round(result.map.height)}`,controls:result.controls.length,minTarget:Math.round(Math.min(...result.controls.map(item=>Math.min(item.width,item.height)))) });
+    if (width >= 1280) assert(result.orientation === 'landscape' && result.viewBox === '0 0 1200 800', `${width}x${height}: wide atlas camera did not use landscape fit (${result.orientation}, ${result.viewBox})`);
+    if (width <= 1024) assert(result.orientation === 'portrait' && result.viewBox === '0 0 800 1200', `${width}x${height}: phone/tablet atlas camera did not retain portrait fit (${result.orientation}, ${result.viewBox})`);
+    evidence.push({ width,height,overflow:result.scrollWidth-result.innerWidth,map:`${Math.round(result.map.width)}x${Math.round(result.map.height)}`,orientation:result.orientation,controls:result.controls.length,minTarget:Math.round(Math.min(...result.controls.map(item=>Math.min(item.width,item.height)))) });
   }
 
   await page.setViewportSize({ width:1440,height:900 }); await page.goto(origin,{waitUntil:'networkidle'});
@@ -110,6 +113,13 @@ try {
   assert(!viewCanvas.headingVisible, `Desktop View left chrome across the atlas: ${JSON.stringify(viewCanvas)}`);
   const desktopLayout = await page.evaluate(() => { const dock=document.querySelector('.workspace-controls').getBoundingClientRect(), tools=document.querySelector('.tools-rail'), inspector=document.querySelector('.inspector-card'); return { dock:{width:dock.width,height:dock.height},toolsVisible:Boolean(tools.getClientRects().length),inspectorContext:inspector.dataset.context }; });
   assert(desktopLayout.dock.width <= 112 && !desktopLayout.toolsVisible && viewCanvas.stage.width >= 760, `Desktop atlas was not given priority over permanent controls: ${JSON.stringify({desktopLayout,viewCanvas})}`);
+  assert(await page.locator('#mapStage').getAttribute('data-atlas-orientation') === 'landscape' && await page.locator('#mapSvg').getAttribute('viewBox') === '0 0 1200 800', 'Desktop atlas did not open in the space-efficient landscape camera');
+  await page.locator('#atlasLayersButton').click();
+  await page.locator('#atlasOrientation').selectOption('portrait');
+  assert(await page.locator('#mapStage').getAttribute('data-atlas-orientation') === 'portrait' && await page.locator('#mapSvg').getAttribute('viewBox') === '0 0 800 1200', 'Manual Portrait camera did not apply');
+  await page.locator('#atlasOrientation').selectOption('auto');
+  assert(await page.locator('#mapStage').getAttribute('data-atlas-orientation') === 'landscape', 'Automatic camera did not restore the wide desktop fit');
+  await page.locator('#atlasLayersDialog').getByRole('button',{name:'Close layers'}).click();
   await page.locator('#closeInspector').click(); const expandedCanvasWidth = await page.locator('#mapStage').evaluate(node=>node.getBoundingClientRect().width);
   assert(expandedCanvasWidth > viewCanvas.stage.width + 250 && await page.locator('.inspector-card').isHidden(), `Closing desktop context did not return space to the atlas: ${JSON.stringify({before:viewCanvas.stage.width,after:expandedCanvasWidth})}`);
   const beforeZoom = await page.locator('#zoomLevel').textContent(); await page.locator('#zoomIn').click(); const afterZoom = await page.locator('#zoomLevel').textContent();

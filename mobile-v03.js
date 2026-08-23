@@ -137,6 +137,10 @@
   }
 
   function syncCanvasDimensions() {
+    // The Living Atlas camera owns presentation dimensions and may rotate the
+    // canonical portrait map for a wide viewport. Keep this legacy fallback
+    // only for shells that load without the Atlas controller.
+    if (window.DIAtlasViewport) return;
     const svg = document.querySelector('#mapSvg');
     const canvas = document.querySelector('#planCanvas');
     if (svg) svg.setAttribute('viewBox', `0 0 ${PORTRAIT_WIDTH} ${PORTRAIT_HEIGHT}`);
