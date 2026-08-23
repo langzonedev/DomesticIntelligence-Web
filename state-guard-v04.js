@@ -239,9 +239,64 @@
     });
   }
 
+  function installMobileObjectDelete() {
+    const editBar = document.querySelector('#mobileEditSessionBar .mobile-edit-actions');
+    if (!editBar || document.querySelector('#mobileDeleteObject')) return;
+
+    const button = document.createElement('button');
+    button.id = 'mobileDeleteObject';
+    button.type = 'button';
+    button.className = 'quiet-action danger-text';
+    button.textContent = 'Delete';
+    button.hidden = true;
+    editBar.insertBefore(button, document.querySelector('#mobileEditCancel'));
+
+    const sync = (state, selection) => {
+      const editing = state?.workspaceMode === 'edit' && document.body.classList.contains('mobile-floor-edit');
+      const removable = editing && selection?.id && (selection.type === 'wall' || selection.type === 'point');
+      button.hidden = !removable;
+      button.disabled = !removable;
+      if (removable) {
+        button.setAttribute('aria-label', selection.type === 'wall' ? 'Delete selected wall' : 'Delete selected device');
+        button.title = selection.type === 'wall' ? 'Delete selected wall' : 'Delete selected device';
+      }
+    };
+
+    button.addEventListener('click', () => {
+      const bridge = window.DIAppBridge;
+      const state = bridge?.getState?.();
+      const selection = bridge?.getSelection?.();
+      if (!state || state.workspaceMode !== 'edit' || !selection?.id) return;
+
+      if (selection.type === 'wall') {
+        if (state.map.layerLocks?.walls) {
+          bridge.notify?.('Unlock the Walls layer before removing a wall.');
+          return;
+        }
+        if (!confirm('Remove this wall? Cancel the edit session to restore it, or Save to keep the deletion.')) return;
+        bridge.commitState?.(window.DIEditorCore.removeWall(state, selection.id), 'Wall removed.');
+      } else if (selection.type === 'point') {
+        if (state.map.layerLocks?.devices) {
+          bridge.notify?.('Unlock the Devices layer before removing a device.');
+          return;
+        }
+        if (!confirm('Remove this device? Cancel the edit session to restore it, or Save to keep the deletion.')) return;
+        bridge.commitState?.(window.DIEditorCore.removePoint(state, selection.id), 'Device removed.');
+      } else return;
+
+      bridge.selectSpatial?.(null, null, {});
+      sync(bridge.getState?.(), bridge.getSelection?.());
+      document.querySelector('#mapStage')?.focus();
+    });
+
+    window.addEventListener('di:render', event => sync(event.detail?.state || window.DIAppBridge?.getState?.(), event.detail?.selection || window.DIAppBridge?.getSelection?.()));
+    sync(window.DIAppBridge?.getState?.(), window.DIAppBridge?.getSelection?.());
+  }
+
   window.addEventListener('di:app-state-ready', () => {
     installCompactMobileMapControls();
     setTimeout(installConsistentRoomPicker, 0);
     setTimeout(installDeviceSaveAndClose, 0);
+    setTimeout(installMobileObjectDelete, 0);
   }, { once: true });
 })();
