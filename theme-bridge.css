@@ -158,7 +158,8 @@
 /* Mobile selected-device quick record refinements. */
 @media (max-width: 760px) {
   body.mobile-point-detail #mobileDeviceSummary,
-  body.mobile-new-device-detail #mobileDeviceSummary {
+  body.mobile-new-device-detail #mobileDeviceSummary,
+  body:has(.inspector-card[role="dialog"][aria-modal="true"]) #mobileDeviceSummary {
     display: none !important;
   }
 
