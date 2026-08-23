@@ -221,8 +221,27 @@
     syncTrigger();
   }
 
+  function installDeviceSaveAndClose() {
+    const form = document.querySelector('#pointForm');
+    if (!form || form.dataset.diSaveCloseBound === 'true') return;
+    form.dataset.diSaveCloseBound = 'true';
+    form.addEventListener('submit', () => {
+      setTimeout(() => {
+        if (!matchMedia('(max-width: 760px), (max-height: 500px) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) and (max-width: 950px)').matches) return;
+        if (form.querySelector('[aria-invalid="true"]')) return;
+        if (!window.DIMobileDetail?.isOpen?.()) return;
+        window.DIMobileDetail.close({ restoreFocus: true });
+        const summary = document.querySelector('#mobileDeviceSummary');
+        if (summary) summary.hidden = true;
+        if (location.hash === '#plan-device' || location.hash === '#plan-new-device') history.back();
+        else history.replaceState({ mobileSection: 'plan' }, '', '#plan');
+      }, 0);
+    });
+  }
+
   window.addEventListener('di:app-state-ready', () => {
     installCompactMobileMapControls();
     setTimeout(installConsistentRoomPicker, 0);
+    setTimeout(installDeviceSaveAndClose, 0);
   }, { once: true });
 })();
