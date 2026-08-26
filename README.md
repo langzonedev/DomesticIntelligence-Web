@@ -4,6 +4,10 @@ Public, synthetic customer-facing prototype for **Domestic Intelligence** by Lan
 
 **Prototype only:** this build does not commission or control real Matter devices, does not perform electrical safety certification, and stores demo changes locally in the browser.
 
+## Product-family position
+
+This repository remains the public PWA staging and compatibility surface. The private [`DomesticIntelligence`](https://github.com/langzonedev/DomesticIntelligence) repository owns the product contract and protected decisions; the private [`DomesticIntelligence-Mobile`](https://github.com/langzonedev/DomesticIntelligence-Mobile) repository is the native Android client in active development. Portable schema-v3 project data should remain compatible across Web and Android without moving protected logic into either client.
+
 ## Live prototype
 
 GitHub Pages: https://langzonedev.github.io/DomesticIntelligence-Web/
